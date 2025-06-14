@@ -147,7 +147,7 @@ const LANGUAGES = {
 			'ui.node_name': '节点名称',
 			'ui.node_password': '节点密码',
 			'ui.optional': '（可选）',
-			'ui.enter': '确定',
+			'ui.enter': '加入房间',
 			'ui.connecting': '连接中...',
 			'ui.node_exists': '此节点已存在',
 			'ui.my_name': '我的名字',
