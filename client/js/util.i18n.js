@@ -134,12 +134,12 @@ const LANGUAGES = {
 		flag: '🇨🇳',
 		translations: {
 			// Meta tags for SEO
-			'meta.description': 'NodeCrypt - 真正的端到端加密聊天系统，无数据库，所有消息本地加密，服务器仅做加密数据中转，支持 Cloudflare Workers、Docker、自托管和本地开发。',
+			'meta.description': '网页加密聊天系统 - 真正的端到端加密聊天系统，无数据库，所有消息本地加密，服务器仅做加密数据中转，支持 Cloudflare Workers、Docker、自托管和本地开发。',
 			'meta.keywords': '端到端加密, 安全, 聊天, WebSocket, Cloudflare Workers, JavaScript, E2EE, 匿名通信, AES, ECDH, RSA, ChaCha20, 安全, 开源, NodeCrypt, shuaiplus',
-			'meta.og_title': 'NodeCrypt - 端到端加密聊天系统',
-			'meta.og_description': 'NodeCrypt 是一个端到端加密的开源聊天系统，所有加密解密均在客户端本地完成，服务器无法获取明文。支持多平台部署，安全、匿名、无历史消息。',
-			'meta.twitter_title': 'NodeCrypt - 端到端加密聊天系统',
-			'meta.twitter_description': 'NodeCrypt 是一个端到端加密的开源聊天系统，所有加密解密均在客户端本地完成，服务器无法获取明文。',
+			'meta.og_title': '网页加密聊天系统 - 端到端加密聊天系统',
+			'meta.og_description': '网页加密聊天系统 是一个端到端加密的开源聊天系统，所有加密解密均在客户端本地完成，服务器无法获取明文。支持多平台部署，安全、匿名、无历史消息。',
+			'meta.twitter_title': '网页加密聊天系统 - 端到端加密聊天系统',
+			'meta.twitter_description': '网页加密聊天系统 是一个端到端加密的开源聊天系统，所有加密解密均在客户端本地完成，服务器无法获取明文。',
 			
 			// Login and main UI
 			'ui.enter_node': '进入新的节点',
