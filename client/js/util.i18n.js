@@ -221,7 +221,7 @@ const LANGUAGES = {
 			'help.title': '使用说明',
 			'help.back_to_login': '返回登录',
 			'help.usage_guide': '使用说明',
-			'help.what_is_nodecrypt': '🔐 什么是 NodeCrypt？',			'help.what_is_nodecrypt_desc': 'NodeCrypt 是一个真正的端到端加密聊天系统。采用无数据库架构，所有消息在您的设备上本地加密，服务器仅作为加密数据的中转站，无法获取您的任何明文内容。',
+			'help.what_is_nodecrypt': '🔐 什么是 网页加密聊天系统？',			'help.what_is_nodecrypt_desc': '网页加密聊天系统 是一个真正的端到端加密聊天系统。采用无数据库架构，所有消息在您的设备上本地加密，服务器仅作为加密数据的中转站，无法获取您的任何明文内容。',
 			'help.how_to_start': '🚀 快速开始',
 			'help.step_username': '输入用户名',
 			'help.step_username_desc': '选择一个在房间中显示的昵称，可以是任何您喜欢的名称',
