@@ -828,7 +828,7 @@ export function generateLoginForm(isModal = false) {
 			</div>
 			<input type="hidden" id="captchaId${idPrefix}" value="">
 		</div>
-		<button type="submit" class="login-btn">${t('ui.enter', 'ENTER')}</button>
+		<button type="submit" class="login-btn">${t('ui.join_room', '加入房间')}</button>
 	`;
 }
 
