@@ -11,6 +11,7 @@ import {
 } from './util.dom.js';
 import { formatFileSize } from './util.file.js';
 import { t } from './util.i18n.js';
+import { processImage } from './util.image.js';
 
 // File upload modal state
 // 文件上传模态框状态
@@ -18,6 +19,7 @@ let uploadModal = null;
 let selectedFiles = new Map();
 let fileIdCounter = 0;
 let onSendCallback = null;
+let onImageSendCallback = null; // Callback for sending images directly
 
 // Listen for language changes to update modal text
 // 监听语言变更以更新模态框文本
@@ -72,14 +74,15 @@ function updateModalTexts() {
 		
 		// Re-attach browse button event
 		const browseBtn = dragDropText.querySelector('.file-browse-btn');
-		if (browseBtn) {
-			on(browseBtn, 'click', handleBrowseClick);
+		const fileInput = uploadModal ? $('#file-upload-input', uploadModal) : null;
+		if (browseBtn && fileInput) {
+			on(browseBtn, 'click', () => fileInput.click());
 		}
 	}
 	
 	// Update summary if files are selected
 	if (selectedFiles.size > 0) {
-		updateFileListDisplay();
+		updateFileList();
 	}
 }
 
@@ -129,12 +132,13 @@ function createUploadModal() {
 
 // Show file upload modal
 // 显示文件上传模态框
-export function showFileUploadModal(onSend) {
+export function showFileUploadModal(onSend, onImageSend = null) {
 	if (uploadModal) {
 		document.body.removeChild(uploadModal);
 	}
 
 	onSendCallback = onSend;
+	onImageSendCallback = onImageSend;
 	selectedFiles.clear();
 	
 	uploadModal = createUploadModal();
@@ -328,6 +332,22 @@ function updateSendButton() {
 	sendBtn.disabled = selectedFiles.size === 0;
 }
 
+// Check if file is an image
+// 检查文件是否为图片
+function isImageFile(file) {
+	return file.type.startsWith('image/');
+}
+
+// Process image file to base64
+// 将图片文件处理为 base64
+function processImageFile(file) {
+	return new Promise((resolve, reject) => {
+		processImage(file, (dataUrl) => {
+			resolve(dataUrl);
+		});
+	});
+}
+
 // Handle send files
 // 处理发送文件
 async function handleSendFiles() {
@@ -335,12 +355,29 @@ async function handleSendFiles() {
 
 	const files = Array.from(selectedFiles.values());
 	
+	// Separate images and other files
+	// 分离图片和其他文件
+	const imageFiles = files.filter(isImageFile);
+	const otherFiles = files.filter(f => !isImageFile(f));
+	
 	try {
 		// Close modal first
 		hideUploadModal();
 		
-		// Send files through callback
-		await onSendCallback(files);
+		// Process and send images directly as image messages
+		// 将图片直接作为图片消息发送
+		if (imageFiles.length > 0 && onImageSendCallback) {
+			const imageDataUrls = await Promise.all(
+				imageFiles.map(file => processImageFile(file))
+			);
+			await onImageSendCallback(imageDataUrls);
+		}
+		
+		// Send other files through file transfer
+		// 通过文件传输发送其他文件
+		if (otherFiles.length > 0) {
+			await onSendCallback(otherFiles);
+		}
 		
 	} catch (error) {
 		console.error('Error sending files:', error);
