@@ -25,6 +25,13 @@ import {
 	createElement
 } from './util.dom.js';
 import { t } from './util.i18n.js';
+import {
+	handleTypingStatus
+} from './util.typing.js';
+import {
+	handleReadReceipt,
+	handleRecallMessage
+} from './util.message.js';
 let roomsData = [];
 let activeRoomIndex = -1;
 
@@ -200,14 +207,18 @@ export function handleClientList(idx, list, selfId) {
 	});
 	rd.myId = selfId;
 	
-	// 存储 clientId 到 IP 的映射（用于 IP 禁言功能）
+	// 存储自己的 clientId 到 IP 的映射（用于 IP 禁言功能）
+	// 每个用户只存储自己的映射，管理员通过查询获取
 	if (selfId && !rd.ipMappingStored) {
 		rd.ipMappingStored = true;
 		fetch('/api/client-ip/set', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ clientId: selfId })
-		}).catch(e => console.error('Failed to store client IP mapping:', e));
+		})
+		.then(res => res.json())
+		.then(data => console.log('My IP mapping stored:', selfId, '-> IP:', data.ip))
+		.catch(e => console.error('Failed to store client IP mapping:', e));
 	}
 	
 	if (activeRoomIndex === idx) {
@@ -302,6 +313,28 @@ export function handleClientMessage(idx, msg) {
 	// Handle admin action messages
 	if (msgType === 'admin_action') {
 		handleAdminAction(msg.data.action, msg.data);
+		return;
+	}
+	
+	// 处理正在输入状态
+	// Handle typing status
+	if (msgType === 'typing') {
+		const senderName = newRd.userMap[senderId]?.userName || t('ui.anonymous', 'Anonymous');
+		handleTypingStatus(senderId, senderName, msg.data?.typing);
+		return;
+	}
+	
+	// 处理已读回执
+	// Handle read receipt
+	if (msgType === 'read_receipt') {
+		handleReadReceipt(senderId, msg.data?.messageIds || []);
+		return;
+	}
+	
+	// 处理消息撤回
+	// Handle message recall
+	if (msgType === 'recall') {
+		handleRecallMessage(senderId, msg.data?.messageId);
 		return;
 	}
 	

@@ -367,6 +367,87 @@ export default {
         }
       }
       
+      // ============ 验证码 API ============
+      
+      // 生成验证码
+      if (url.pathname === '/api/captcha/generate' && request.method === 'GET') {
+        try {
+          // 生成随机验证码（4位数字+字母）
+          const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+          let code = '';
+          for (let i = 0; i < 4; i++) {
+            code += chars.charAt(Math.floor(Math.random() * chars.length));
+          }
+          
+          // 生成唯一ID
+          const captchaId = crypto.randomUUID();
+          
+          // 存储验证码到 KV（5分钟过期）
+          if (env.MUTE_STORE) {
+            await env.MUTE_STORE.put(
+              `captcha:${captchaId}`,
+              code.toUpperCase(),
+              { expirationTtl: 300 }
+            );
+          }
+          
+          // 生成简单的 SVG 验证码图片
+          const svgCaptcha = generateCaptchaSVG(code);
+          
+          return new Response(JSON.stringify({
+            success: true,
+            captchaId: captchaId,
+            image: svgCaptcha
+          }), { headers: corsHeaders });
+        } catch (error) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'captcha_generation_failed'
+          }), { headers: corsHeaders, status: 500 });
+        }
+      }
+      
+      // 验证验证码
+      if (url.pathname === '/api/captcha/verify' && request.method === 'POST') {
+        try {
+          const body = await request.json();
+          const { captchaId, code } = body;
+          
+          if (!captchaId || !code) {
+            return new Response(JSON.stringify({
+              valid: false,
+              error: 'missing_parameters'
+            }), { headers: corsHeaders, status: 400 });
+          }
+          
+          let storedCode = null;
+          if (env.MUTE_STORE) {
+            storedCode = await env.MUTE_STORE.get(`captcha:${captchaId}`);
+            // 验证后删除验证码（一次性使用）
+            await env.MUTE_STORE.delete(`captcha:${captchaId}`);
+          }
+          
+          if (!storedCode) {
+            return new Response(JSON.stringify({
+              valid: false,
+              error: 'captcha_expired'
+            }), { headers: corsHeaders });
+          }
+          
+          const isValid = storedCode.toUpperCase() === code.toUpperCase();
+          
+          return new Response(JSON.stringify({
+            valid: isValid,
+            error: isValid ? null : 'captcha_incorrect'
+          }), { headers: corsHeaders });
+        } catch (error) {
+          return new Response(JSON.stringify({
+            valid: false,
+            error: 'verification_failed'
+          }), { headers: corsHeaders, status: 500 });
+        }
+      }
+      
       // ============ 房间验证 API ============
       
       // 验证房间访问
@@ -419,6 +500,59 @@ export default {
     return env.ASSETS.fetch(request);
   }
 };
+
+// 生成验证码 SVG 图片
+function generateCaptchaSVG(code) {
+  const width = 120;
+  const height = 40;
+  const chars = code.split('');
+  
+  // 生成随机颜色
+  const randomColor = () => {
+    const r = Math.floor(Math.random() * 100 + 50);
+    const g = Math.floor(Math.random() * 100 + 50);
+    const b = Math.floor(Math.random() * 100 + 50);
+    return `rgb(${r},${g},${b})`;
+  };
+  
+  // 生成干扰线
+  let lines = '';
+  for (let i = 0; i < 4; i++) {
+    const x1 = Math.random() * width;
+    const y1 = Math.random() * height;
+    const x2 = Math.random() * width;
+    const y2 = Math.random() * height;
+    lines += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${randomColor()}" stroke-width="1" opacity="0.5"/>`;
+  }
+  
+  // 生成干扰点
+  let dots = '';
+  for (let i = 0; i < 30; i++) {
+    const x = Math.random() * width;
+    const y = Math.random() * height;
+    dots += `<circle cx="${x}" cy="${y}" r="1" fill="${randomColor()}" opacity="0.5"/>`;
+  }
+  
+  // 生成字符
+  let text = '';
+  chars.forEach((char, i) => {
+    const x = 15 + i * 25;
+    const y = 28 + (Math.random() * 6 - 3);
+    const rotate = Math.random() * 20 - 10;
+    const fontSize = 22 + Math.random() * 4;
+    text += `<text x="${x}" y="${y}" font-size="${fontSize}" font-family="Arial, sans-serif" font-weight="bold" fill="${randomColor()}" transform="rotate(${rotate} ${x} ${y})">${char}</text>`;
+  });
+  
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+    <rect width="100%" height="100%" fill="#f5f5f5"/>
+    ${lines}
+    ${dots}
+    ${text}
+  </svg>`;
+  
+  // 返回 base64 编码的 SVG
+  return 'data:image/svg+xml;base64,' + btoa(svg);
+}
 
 // 从环境变量获取房间配置
 // 环境变量格式：

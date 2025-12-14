@@ -18,6 +18,27 @@ import { THEMES, getCurrentTheme, applyTheme } from './util.theme.js';
 // Import i18n utilities
 // 导入国际化工具函数
 import { t, setLanguage, getCurrentLanguage, initI18n } from './util.i18n.js';
+
+// Import notification utilities
+// 导入通知工具函数
+import {
+	setSoundEnabled,
+	isSoundEnabled,
+	setDesktopNotificationEnabled,
+	isDesktopNotificationEnabled,
+	requestNotificationPermission as requestNotifPermission
+} from './util.notification.js';
+
+// Import filter utilities
+// 导入过滤工具函数
+import {
+	isFilterEnabled,
+	setFilterEnabled,
+	getCustomSensitiveWords,
+	addSensitiveWord,
+	removeSensitiveWord
+} from './util.filter.js';
+
 // Default settings
 // 默认设置
 const DEFAULT_SETTINGS = {
@@ -27,6 +48,7 @@ const DEFAULT_SETTINGS = {
 	// 注意：我们不设置默认语言，让系统自动检测浏览器语言
 	// Note: We don't set a default language, let the system auto-detect browser language
 };
+
 
 // Load settings from localStorage
 // 从 localStorage 加载设置
@@ -92,7 +114,15 @@ function setupSettingsPanel() {
 	// 更新设置标题
 	if (settingsTitle) {
 		settingsTitle.textContent = t('settings.title', 'Settings');
-	}// Create settings content HTML
+	}
+	
+	// Get current notification and filter states
+	const soundEnabled = isSoundEnabled();
+	const desktopNotifEnabled = isDesktopNotificationEnabled();
+	const filterEnabled = isFilterEnabled();
+	const sensitiveWords = getCustomSensitiveWords();
+	
+	// Create settings content HTML
 	settingsContent.innerHTML = `
 		<div class="settings-section">
 			<div class="settings-section-title">${t('settings.notification', 'Notification Settings')}</div>
@@ -101,7 +131,7 @@ function setupSettingsPanel() {
 					<div>${t('settings.desktop_notifications', 'Desktop Notifications')}</div>
 				</div>
 				<label class="switch">
-					<input type="checkbox" id="settings-notify" ${settings.notify ? 'checked' : ''}>
+					<input type="checkbox" id="settings-notify" ${desktopNotifEnabled ? 'checked' : ''}>
 					<span class="slider"></span>
 				</label>
 			</div>
@@ -110,12 +140,40 @@ function setupSettingsPanel() {
 					<div>${t('settings.sound_notifications', 'Sound Notifications')}</div>
 				</div>
 				<label class="switch">
-					<input type="checkbox" id="settings-sound" ${settings.sound ? 'checked' : ''}>
+					<input type="checkbox" id="settings-sound" ${soundEnabled ? 'checked' : ''}>
 					<span class="slider"></span>
 				</label>
 			</div>
 		</div>
-				<div class="settings-section">
+		
+		<div class="settings-section">
+			<div class="settings-section-title">${t('settings.filter', '敏感词过滤')}</div>
+			<div class="settings-item">
+				<div class="settings-item-label">
+					<div>${t('settings.enable_filter', '启用敏感词过滤')}</div>
+				</div>
+				<label class="switch">
+					<input type="checkbox" id="settings-filter" ${filterEnabled ? 'checked' : ''}>
+					<span class="slider"></span>
+				</label>
+			</div>
+			<div class="settings-item" style="flex-direction: column; align-items: stretch;">
+				<div class="sensitive-word-input">
+					<input type="text" id="new-sensitive-word" placeholder="${t('settings.add_word', '添加敏感词')}" maxlength="20">
+					<button id="add-sensitive-word-btn">${t('settings.add', '添加')}</button>
+				</div>
+				<div class="sensitive-word-list" id="sensitive-word-list">
+					${sensitiveWords.map(word => `
+						<span class="sensitive-word-tag" data-word="${word}">
+							${word}
+							<button class="remove-word-btn">&times;</button>
+						</span>
+					`).join('')}
+				</div>
+			</div>
+		</div>
+		
+		<div class="settings-section">
 			<div class="settings-section-title">${t('settings.language', 'Language Settings')}</div>
 			<div class="settings-item">
 				<div class="settings-item-label">
@@ -139,9 +197,54 @@ function setupSettingsPanel() {
 				`).join('')}
 			</div>
 		</div>
-	`;	const notifyCheckbox = $('#settings-notify', settingsContent);
-	const soundCheckbox = $('#settings-sound', settingsContent);
-	const languageSelect = $('#settings-language', settingsContent);
+	`;
+	
+	const notifyCheckbox = $id('settings-notify');
+	const soundCheckbox = $id('settings-sound');
+	const filterCheckbox = $id('settings-filter');
+	const languageSelect = $id('settings-language');
+	const addWordBtn = $id('add-sensitive-word-btn');
+	const newWordInput = $id('new-sensitive-word');
+	const wordList = $id('sensitive-word-list');
+	
+	// Filter checkbox handler
+	if (filterCheckbox) {
+		on(filterCheckbox, 'change', e => {
+			setFilterEnabled(e.target.checked);
+		});
+	}
+	
+	// Add sensitive word handler
+	if (addWordBtn && newWordInput) {
+		const addWord = () => {
+			const word = newWordInput.value.trim();
+			if (word && addSensitiveWord(word)) {
+				const tag = document.createElement('span');
+				tag.className = 'sensitive-word-tag';
+				tag.dataset.word = word;
+				tag.innerHTML = `${word}<button class="remove-word-btn">&times;</button>`;
+				wordList.appendChild(tag);
+				newWordInput.value = '';
+			}
+		};
+		on(addWordBtn, 'click', addWord);
+		on(newWordInput, 'keypress', e => {
+			if (e.key === 'Enter') addWord();
+		});
+	}
+	
+	// Remove sensitive word handler
+	if (wordList) {
+		on(wordList, 'click', e => {
+			if (e.target.classList.contains('remove-word-btn')) {
+				const tag = e.target.closest('.sensitive-word-tag');
+				if (tag) {
+					removeSensitiveWord(tag.dataset.word);
+					tag.remove();
+				}
+			}
+		});
+	}
 	
 	// Language select event handler
 	// 语言选择事件处理
@@ -176,18 +279,19 @@ function setupSettingsPanel() {
 			askNotificationPermission(permission => {
 				if (permission === 'granted') {
 					settings.notify = true;
-					settings.sound = false;
-					if (soundCheckbox) soundCheckbox.checked = false;
+					setDesktopNotificationEnabled(true);
 					saveSettings(settings);
-					applySettings(settings);					// 防止重复通知，添加一个标志位
+					applySettings(settings);
+					// 防止重复通知，添加一个标志位
 					if (!settingsSidebar._notificationShown) {
 						new Notification('Notifications enabled', {
 							body: 'You will receive alerts here.'
 						});
-						settingsSidebar._notificationShown = true; // 设置标志位
+						settingsSidebar._notificationShown = true;
 					}
 				} else {
 					settings.notify = false;
+					setDesktopNotificationEnabled(false);
 					e.target.checked = false;
 					saveSettings(settings);
 					applySettings(settings);
@@ -196,24 +300,26 @@ function setupSettingsPanel() {
 			})
 		} else {
 			settings.notify = false;
+			setDesktopNotificationEnabled(false);
 			saveSettings(settings);
-			applySettings(settings);			// 重置标志位
+			applySettings(settings);
+			// 重置标志位
 			if (settingsSidebar._notificationShown) {
 				settingsSidebar._notificationShown = false;
 			}
 		}
-	});	on(soundCheckbox, 'change', e => {
+	});
+	
+	on(soundCheckbox, 'change', e => {
 		settings.sound = e.target.checked;
-		if (settings.sound) {
-			settings.notify = false;
-			if (notifyCheckbox) notifyCheckbox.checked = false;
-		}
+		setSoundEnabled(e.target.checked);
 		saveSettings(settings);
 		applySettings(settings)
 	});
+	
 	// Theme selection event handlers
 	// 主题选择事件处理
-	const themeSelector = $('#theme-selector', settingsContent);
+	const themeSelector = $id('theme-selector');
 	if (themeSelector) {
 		// Custom scrolling functionality
 		// 自定义滚动功能
@@ -225,9 +331,10 @@ function setupSettingsPanel() {
 		// 鼠标滚轮滚动（垂直转水平）
 		on(themeSelector, 'wheel', e => {
 			e.preventDefault();
-			const scrollAmount = e.deltaY * 0.5; // Adjust scroll sensitivity
+			const scrollAmount = e.deltaY * 0.5;
 			themeSelector.scrollLeft += scrollAmount;
 		});
+		
 		// Mouse drag scrolling
 		// 鼠标拖拽滚动
 		let dragStartTime = 0;
@@ -240,16 +347,16 @@ function setupSettingsPanel() {
 			startX = e.pageX - themeSelector.offsetLeft;
 			scrollLeft = themeSelector.scrollLeft;
 			themeSelector.classList.add('dragging');
-			e.preventDefault(); // Prevent text selection
+			e.preventDefault();
 		});
+		
 		on(document, 'mousemove', e => {
 			if (!isDragging) return;
 			e.preventDefault();
 			const x = e.pageX - themeSelector.offsetLeft;
-			const walk = (x - startX) * 2; // Scroll speed multiplier
+			const walk = (x - startX) * 2;
 			const moved = Math.abs(walk);
 			
-			// If moved more than 5px, consider it a drag
 			if (moved > 5) {
 				hasDragged = true;
 			}
@@ -263,6 +370,7 @@ function setupSettingsPanel() {
 				themeSelector.classList.remove('dragging');
 			}
 		});
+		
 		// Touch support for mobile
 		// 移动端触摸支持
 		let touchStartX = 0;
@@ -280,9 +388,8 @@ function setupSettingsPanel() {
 		on(themeSelector, 'touchmove', e => {
 			e.preventDefault();
 			const touchX = e.touches[0].clientX;
-			const walk = (touchStartX - touchX) * 1.5; // Touch scroll sensitivity
+			const walk = (touchStartX - touchX) * 1.5;
 			
-			// If moved more than 10px, consider it a swipe
 			if (Math.abs(walk) > 10) {
 				touchHasMoved = true;
 			}
@@ -290,18 +397,12 @@ function setupSettingsPanel() {
 			themeSelector.scrollLeft = touchScrollLeft + walk;
 		});
 
-		// Handle touch end for theme selection
-		// 处理触摸结束的主题选择
 		on(themeSelector, 'touchend', e => {
-			// If user swiped, don't trigger theme selection
-			// 如果用户滑动过，不触发主题选择
 			if (touchHasMoved) {
 				touchHasMoved = false;
 				return;
 			}
 			
-			// Check if it was a quick tap
-			// 检查是否是快速点击
 			const tapDuration = Date.now() - touchStartTime;
 			if (tapDuration > 300) {
 				return;
@@ -311,31 +412,26 @@ function setupSettingsPanel() {
 			if (themeItem) {
 				const themeId = themeItem.dataset.themeId;
 				if (themeId && themeId !== settings.theme) {
-					// Update active state
 					$$('.theme-item', themeSelector).forEach(item => {
 						item.classList.remove('active');
 					});
 					themeItem.classList.add('active');
 					
-					// Apply theme and save settings
 					settings.theme = themeId;
 					applyTheme(themeId);
 					saveSettings(settings);
 				}
 			}
 		});
+		
 		// Theme selection click handler
 		// 主题选择点击处理器
 		on(themeSelector, 'click', e => {
-			// If user just dragged, don't trigger theme selection
-			// 如果用户刚刚拖拽过，不触发主题选择
 			if (hasDragged) {
 				hasDragged = false;
 				return;
 			}
 			
-			// Also check if it was a quick click (less than 200ms and minimal movement)
-			// 同时检查是否是快速点击（少于200ms且移动很少）
 			const clickDuration = Date.now() - dragStartTime;
 			if (clickDuration > 200) {
 				return;
@@ -345,13 +441,11 @@ function setupSettingsPanel() {
 			if (themeItem) {
 				const themeId = themeItem.dataset.themeId;
 				if (themeId && themeId !== settings.theme) {
-					// Update active state
 					$$('.theme-item', themeSelector).forEach(item => {
 						item.classList.remove('active');
 					});
 					themeItem.classList.add('active');
 					
-					// Apply theme and save settings
 					settings.theme = themeId;
 					applyTheme(themeId);
 					saveSettings(settings);
@@ -376,24 +470,19 @@ function openSettingsPanel() {
 	if (!settingsSidebar || !sidebar) return;
 	
 	if (isMobile()) {
-		// Mobile: hide main sidebar and show settings sidebar with mask
 		sidebar.classList.remove('mobile-open');
 		settingsSidebar.style.display = 'flex';
-		// Force reflow then add animation class
 		settingsSidebar.offsetHeight;
 		settingsSidebar.classList.add('mobile-open');
 		if (sidebarMask) {
 			sidebarMask.classList.add('active');
-		}	} else {
-		// Desktop: show settings sidebar as overlay with slide animation
+		}
+	} else {
 		settingsSidebar.style.display = 'flex';
-		// Force reflow then slide in
 		settingsSidebar.offsetHeight;
 		settingsSidebar.classList.add('open');
-		// Keep main sidebar visible - settings sidebar is an overlay
 	}
 	
-	// Setup settings content
 	setupSettingsPanel();
 }
 
@@ -401,7 +490,7 @@ function openSettingsPanel() {
 // 关闭设置面板
 function closeSettingsPanel() {
 	const settingsSidebar = $id('settings-sidebar');
-	const sidebarMask = $id('mobile-sidebar-mask'); // mobile-sidebar-mask is used for settings on mobile
+	const sidebarMask = $id('mobile-sidebar-mask');
 
 	if (!settingsSidebar) return;
 
@@ -415,21 +504,17 @@ function closeSettingsPanel() {
 		if (sidebarMask) {
 			sidebarMask.classList.remove('active');
 		}
-		// Listen for transition end to set display none
 		settingsSidebar.addEventListener('transitionend', animationEnded);
-		// Fallback if transitionend doesn't fire (e.g., if no transition is defined or display:none is set too early by other means)
 		setTimeout(() => {
-			if (!settingsSidebar.classList.contains('mobile-open')) { // check if it wasn't reopened
+			if (!settingsSidebar.classList.contains('mobile-open')) {
 				settingsSidebar.style.display = 'none';
 			}
-		}, 350); // Slightly longer than CSS transition
+		}, 350);
 	} else {
 		settingsSidebar.classList.remove('open');
-		// Listen for transition end to set display none
 		settingsSidebar.addEventListener('transitionend', animationEnded);
-		// Fallback
 		setTimeout(() => {
-			if (!settingsSidebar.classList.contains('open')) { // check if it wasn't reopened
+			if (!settingsSidebar.classList.contains('open')) {
 				settingsSidebar.style.display = 'none';
 			}
 		}, 350);
@@ -442,17 +527,11 @@ function initSettings() {
 	const settings = loadSettings();
 	applySettings(settings);
 	
-	// Apply theme from settings
-	// 从设置中应用主题
 	if (settings.theme) {
 		applyTheme(settings.theme);
 	}
 	
-	// Listen for language change events to update UI
-	// 监听语言变更事件以更新UI
 	window.addEventListener('languageChange', () => {
-		// Update settings title if settings panel is open
-		// 如果设置面板已打开，更新设置标题
 		const settingsTitle = $id('settings-title');
 		if (settingsTitle) {
 			settingsTitle.textContent = t('settings.title', 'Settings');
@@ -496,7 +575,9 @@ function playSoundNotification() {
 function showDesktopNotification(roomName, text, msgType, sender) {
 	if (!('Notification' in window) || Notification.permission !== 'granted') return;
 	let body;
-	const senderPrefix = sender ? `${sender}:` : '';	if (msgType === 'image' || msgType === 'private image') {
+	const senderPrefix = sender ? `${sender}:` : '';
+	
+	if (msgType === 'image' || msgType === 'private image') {
 		body = `${senderPrefix}${t('notification.image', '[image]')}`;
 		if (msgType === 'private image') {
 			body = `${t('notification.private', '(Private)')}${body}`
@@ -524,6 +605,7 @@ export function notifyMessage(roomName, msgType, text, sender) {
 		playSoundNotification()
 	}
 }
+
 export {
 	openSettingsPanel,
 	closeSettingsPanel,

@@ -196,7 +196,10 @@ export function renderMainHeader() {
 		</div>
 	` : '';
 	
-	$id("main-header").innerHTML = `<button class="mobile-menu-btn"id="mobile-menu-btn"aria-label="Open Sidebar"><svg width="35px"height="35px"viewBox="0 0 24 24"fill="none"xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier"stroke-width="0"></g><g id="SVGRepo_tracerCarrier"stroke-linecap="round"stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"><path fill-rule="evenodd"clip-rule="evenodd"d="M21.4498 10.275L11.9998 3.1875L2.5498 10.275L2.9998 11.625H3.7498V20.25H20.2498V11.625H20.9998L21.4498 10.275ZM5.2498 18.75V10.125L11.9998 5.0625L18.7498 10.125V18.75H14.9999V14.3333L14.2499 13.5833H9.74988L8.99988 14.3333V18.75H5.2498ZM10.4999 18.75H13.4999V15.0833H10.4999V18.75Z"fill="#808080"></path></g></svg></button><div class="main-header-center"id="main-header-center"><div class="main-header-flex"><div class="group-title group-title-bold">#${safeRoomName}</div><span class="main-header-members">${onlineCount} ${t('ui.members', 'members')}</span></div></div>${adminToolbarHtml}<div class="main-header-actions"><button class="more-btn"id="more-btn"aria-label="More Options"><svg width="35px"height="35px"viewBox="0 0 24 24"fill="none"xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier"stroke-width="0"></g><g id="SVGRepo_tracerCarrier"stroke-linecap="round"stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"><circle cx="12"cy="6"r="1.5"fill="#808080"></circle><circle cx="12"cy="12"r="1.5"fill="#808080"></circle><circle cx="12"cy="18"r="1.5"fill="#808080"></circle></g></svg></button><button class="mobile-info-btn"id="mobile-info-btn"aria-label="Open Members"><svg width="35px"height="35px"viewBox="0 0 24 24"fill="none"xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier"stroke-width="0"></g><g id="SVGRepo_tracerCarrier"stroke-linecap="round"stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"><path fill-rule="evenodd"clip-rule="evenodd"d="M16.0603 18.307C14.89 19.0619 13.4962 19.5 12 19.5C10.5038 19.5 9.10996 19.0619 7.93972 18.307C8.66519 16.7938 10.2115 15.75 12 15.75C13.7886 15.75 15.3349 16.794 16.0603 18.307ZM17.2545 17.3516C16.2326 15.5027 14.2632 14.25 12 14.25C9.73663 14.25 7.76733 15.5029 6.74545 17.3516C5.3596 15.9907 4.5 14.0958 4.5 12C4.5 7.85786 7.85786 4.5 12 4.5C16.1421 4.5 19.5 7.85786 19.5 12C19.5 14.0958 18.6404 15.9908 17.2545 17.3516ZM21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12ZM12 12C13.2426 12 14.25 10.9926 14.25 9.75C14.25 8.50736 13.2426 7.5 12 7.5C10.7574 7.5 9.75 8.50736 9.75 9.75C9.75 10.9926 10.7574 12 12 12ZM12 13.5C14.0711 13.5 15.75 11.8211 15.75 9.75C15.75 7.67893 14.0711 6 12 6C9.92893 6 8.25 7.67893 8.25 9.75C8.25 11.8211 9.92893 13.5 12 13.5Z"fill="#808080"></path></g></svg></button><div class="more-menu"id="more-menu"><div class="more-menu-item"data-action="share">${t('action.share', 'Share')}</div><div class="more-menu-item"data-action="exit">${t('action.exit', 'Quit')}</div></div></div>`;
+	// E2E 加密指示器
+	const e2eIndicatorHtml = `<div class="e2e-indicator" title="${t('ui.e2e_encrypted', '端到端加密')}"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C9.24 2 7 4.24 7 7V10H6C4.9 10 4 10.9 4 12V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V12C20 10.9 19.1 10 18 10H17V7C17 4.24 14.76 2 12 2ZM12 4C13.66 4 15 5.34 15 7V10H9V7C9 5.34 10.34 4 12 4ZM12 14C13.1 14 14 14.9 14 16C14 17.1 13.1 18 12 18C10.9 18 10 17.1 10 16C10 14.9 10.9 14 12 14Z" fill="currentColor"/></svg><span>${t('ui.encrypted', '加密')}</span></div>`;
+	
+	$id("main-header").innerHTML = `<button class="mobile-menu-btn"id="mobile-menu-btn"aria-label="Open Sidebar"><svg width="35px"height="35px"viewBox="0 0 24 24"fill="none"xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier"stroke-width="0"></g><g id="SVGRepo_tracerCarrier"stroke-linecap="round"stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"><path fill-rule="evenodd"clip-rule="evenodd"d="M21.4498 10.275L11.9998 3.1875L2.5498 10.275L2.9998 11.625H3.7498V20.25H20.2498V11.625H20.9998L21.4498 10.275ZM5.2498 18.75V10.125L11.9998 5.0625L18.7498 10.125V18.75H14.9999V14.3333L14.2499 13.5833H9.74988L8.99988 14.3333V18.75H5.2498ZM10.4999 18.75H13.4999V15.0833H10.4999V18.75Z"fill="#808080"></path></g></svg></button><div class="main-header-center"id="main-header-center"><div class="main-header-flex"><div class="group-title group-title-bold">#${safeRoomName}</div>${e2eIndicatorHtml}<span class="main-header-members">${onlineCount} ${t('ui.members', 'members')}</span></div></div>${adminToolbarHtml}<div class="main-header-actions"><button class="more-btn"id="more-btn"aria-label="More Options"><svg width="35px"height="35px"viewBox="0 0 24 24"fill="none"xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier"stroke-width="0"></g><g id="SVGRepo_tracerCarrier"stroke-linecap="round"stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"><circle cx="12"cy="6"r="1.5"fill="#808080"></circle><circle cx="12"cy="12"r="1.5"fill="#808080"></circle><circle cx="12"cy="18"r="1.5"fill="#808080"></circle></g></svg></button><button class="mobile-info-btn"id="mobile-info-btn"aria-label="Open Members"><svg width="35px"height="35px"viewBox="0 0 24 24"fill="none"xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier"stroke-width="0"></g><g id="SVGRepo_tracerCarrier"stroke-linecap="round"stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"><path fill-rule="evenodd"clip-rule="evenodd"d="M16.0603 18.307C14.89 19.0619 13.4962 19.5 12 19.5C10.5038 19.5 9.10996 19.0619 7.93972 18.307C8.66519 16.7938 10.2115 15.75 12 15.75C13.7886 15.75 15.3349 16.794 16.0603 18.307ZM17.2545 17.3516C16.2326 15.5027 14.2632 14.25 12 14.25C9.73663 14.25 7.76733 15.5029 6.74545 17.3516C5.3596 15.9907 4.5 14.0958 4.5 12C4.5 7.85786 7.85786 4.5 12 4.5C16.1421 4.5 19.5 7.85786 19.5 12C19.5 14.0958 18.6404 15.9908 17.2545 17.3516ZM21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12ZM12 12C13.2426 12 14.25 10.9926 14.25 9.75C14.25 8.50736 13.2426 7.5 12 7.5C10.7574 7.5 9.75 8.50736 9.75 9.75C9.75 10.9926 10.7574 12 12 12ZM12 13.5C14.0711 13.5 15.75 11.8211 15.75 9.75C15.75 7.67893 14.0711 6 12 6C9.92893 6 8.25 7.67893 8.25 9.75C8.25 11.8211 9.92893 13.5 12 13.5Z"fill="#808080"></path></g></svg></button><div class="more-menu"id="more-menu"><div class="more-menu-item"data-action="share">${t('action.share', 'Share')}</div><div class="more-menu-item"data-action="exit">${t('action.exit', 'Quit')}</div></div></div>`;
 	setupMoreBtnMenu();
 	setupMobileUIHandlers();
 	
@@ -606,9 +609,12 @@ export function loginFormHandler(modal) {
 		const roomName = document.getElementById('roomName' + idPrefix).value.trim();
 		const password = document.getElementById('password' + idPrefix)?.value.trim() || '';
 		const adminPassword = document.getElementById('adminPassword' + idPrefix)?.value.trim() || '';
+		const captchaCode = document.getElementById('captcha' + idPrefix)?.value.trim() || '';
+		const captchaId = document.getElementById('captchaId' + idPrefix)?.value || '';
 		const btn = modal ? modal.querySelector('.login-btn') : document.querySelector('#login-form .login-btn');
 		const roomInput = document.getElementById('roomName' + idPrefix);
 		const passwordInput = document.getElementById('password' + idPrefix);
+		const captchaInput = document.getElementById('captcha' + idPrefix);
 		
 		// 清除之前的错误提示
 		clearFormErrors(idPrefix);
@@ -631,9 +637,44 @@ export function loginFormHandler(modal) {
 			return;
 		}
 		
+		// 验证验证码
+		if (!captchaCode) {
+			showFormError(captchaInput, 'captcha_required', idPrefix);
+			return;
+		}
+		
 		if (btn) {
 			btn.disabled = true;
 			btn.innerText = t('ui.validating', '验证中...');
+		}
+		
+		// 验证验证码
+		try {
+			const captchaResponse = await fetch('/api/captcha/verify', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ captchaId, code: captchaCode })
+			});
+			const captchaResult = await captchaResponse.json();
+			
+			if (!captchaResult.valid) {
+				showFormError(captchaInput, captchaResult.error || 'captcha_incorrect', idPrefix);
+				if (btn) {
+					btn.disabled = false;
+					btn.innerText = t('ui.enter', 'ENTER');
+				}
+				// 刷新验证码
+				window.refreshCaptcha && window.refreshCaptcha(idPrefix);
+				return;
+			}
+		} catch (error) {
+			console.error('Captcha verification failed:', error);
+			showFormError(captchaInput, 'captcha_error', idPrefix);
+			if (btn) {
+				btn.disabled = false;
+				btn.innerText = t('ui.enter', 'ENTER');
+			}
+			return;
 		}
 		
 		// 异步验证房间访问权限
@@ -677,8 +718,10 @@ export function loginFormHandler(modal) {
 function clearFormErrors(idPrefix) {
 	const roomInput = document.getElementById('roomName' + idPrefix);
 	const passwordInput = document.getElementById('password' + idPrefix);
+	const captchaInput = document.getElementById('captcha' + idPrefix);
+	const userNameInput = document.getElementById('userName' + idPrefix);
 	
-	[roomInput, passwordInput].forEach(input => {
+	[roomInput, passwordInput, captchaInput, userNameInput].forEach(input => {
 		if (input) {
 			input.style.border = '';
 			input.style.background = '';
@@ -701,7 +744,11 @@ function showFormError(input, errorType, idPrefix) {
 		'username_required': t('ui.username_required', '请输入用户名'),
 		'room_required': t('ui.room_required', '请选择房间'),
 		'password_required': t('ui.password_required', '请输入房间密码'),
-		'network_error': t('ui.network_error', '网络错误，请重试')
+		'network_error': t('ui.network_error', '网络错误，请重试'),
+		'captcha_required': t('ui.captcha_required', '请输入验证码'),
+		'captcha_incorrect': t('ui.captcha_incorrect', '验证码错误'),
+		'captcha_expired': t('ui.captcha_expired', '验证码已过期'),
+		'captcha_error': t('ui.captcha_error', '验证码验证失败')
 	};
 	
 	const targetInput = errorType === 'wrong_password' 
@@ -756,9 +803,41 @@ export function generateLoginForm(isModal = false) {
 			<label for="adminPassword${idPrefix}">${t('ui.admin_password', '管理员密码')} <span class="optional">${t('ui.optional', '(可选)')}</span></label>
 			<input id="adminPassword${idPrefix}" type="password" autocomplete="off" maxlength="30" placeholder="${t('ui.admin_password', '管理员密码')}">
 		</div>
+		<div class="input-group captcha-group" id="captcha-group${idPrefix}">
+			<label for="captcha${idPrefix}">${t('ui.captcha', '验证码')}</label>
+			<div class="captcha-wrapper">
+				<input id="captcha${idPrefix}" type="text" autocomplete="off" maxlength="4" placeholder="${t('ui.enter_captcha', '输入验证码')}" required>
+				<div class="captcha-image-wrapper">
+					<img id="captcha-image${idPrefix}" class="captcha-image" src="" alt="captcha" onclick="window.refreshCaptcha && window.refreshCaptcha('${idPrefix}')">
+					<button type="button" class="captcha-refresh-btn" onclick="window.refreshCaptcha && window.refreshCaptcha('${idPrefix}')" title="${t('ui.refresh_captcha', '刷新验证码')}">🔄</button>
+				</div>
+			</div>
+			<input type="hidden" id="captchaId${idPrefix}" value="">
+		</div>
 		<button type="submit" class="login-btn">${t('ui.enter', 'ENTER')}</button>
 	`;
 }
+
+// 刷新验证码
+async function refreshCaptcha(idPrefix = '') {
+	try {
+		const response = await fetch('/api/captcha/generate');
+		const data = await response.json();
+		
+		if (data.success) {
+			const captchaImage = document.getElementById('captcha-image' + idPrefix);
+			const captchaIdInput = document.getElementById('captchaId' + idPrefix);
+			
+			if (captchaImage) captchaImage.src = data.image;
+			if (captchaIdInput) captchaIdInput.value = data.captchaId;
+		}
+	} catch (error) {
+		console.error('Failed to refresh captcha:', error);
+	}
+}
+
+// 暴露到全局
+window.refreshCaptcha = refreshCaptcha;
 export function openLoginModal() {
 	const modal = document.createElement('div');
 	modal.className = 'login-modal';
@@ -769,6 +848,9 @@ export function openLoginModal() {
 	
 	// 设置房间选择监听
 	setupRoomSelectListener('-modal');
+	
+	// 加载验证码
+	window.refreshCaptcha && window.refreshCaptcha('-modal');
 	
 	const form = modal.querySelector('#login-form-modal');
 	form.addEventListener('submit', loginFormHandler(modal));
@@ -879,6 +961,9 @@ export async function initLoginForm() {
 			// 即使失败也重新生成表单
 			loginFormContainer.innerHTML = generateLoginForm(false);
 		}
+		
+		// 加载验证码
+		window.refreshCaptcha && window.refreshCaptcha('');
 		
 		// 设置房间选择事件监听
 		setupRoomSelectListener('');

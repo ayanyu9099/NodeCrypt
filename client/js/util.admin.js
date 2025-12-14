@@ -72,9 +72,18 @@ async function sendIPBanRequest(targetId, duration) {
 		});
 		const ipResult = await ipResponse.json();
 		
-		if (!ipResult.ip) {
-			showToastMsg(t('admin.ip_not_found', '无法获取用户IP，请稍后重试'), 'error');
-			return;
+		let targetIP = ipResult.ip;
+		
+		// 如果获取不到 IP，让管理员手动输入
+		if (!targetIP) {
+			targetIP = prompt(
+				t('admin.ip_not_found_manual', '无法自动获取用户IP（用户可能使用旧版本）\n请手动输入IP地址，或访问 /api/recent-ips 查看最近连接的IP:'),
+				''
+			);
+			if (!targetIP || !targetIP.trim()) {
+				return;
+			}
+			targetIP = targetIP.trim();
 		}
 		
 		// 使用 IP 进行禁言
@@ -82,7 +91,7 @@ async function sendIPBanRequest(targetId, duration) {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
-				targetIP: ipResult.ip,
+				targetIP: targetIP,
 				duration: duration * 60, // 转换为秒
 				reason: `Muted by admin: ${rd.myUserName}`,
 				mutedBy: rd.myUserName
@@ -91,7 +100,7 @@ async function sendIPBanRequest(targetId, duration) {
 		const result = await response.json();
 		if (result.success) {
 			console.log('IP mute saved to KV:', result.data);
-			showToastMsg(t('admin.ip_mute_success', 'IP禁言已生效') + ` (${ipResult.ip})`, 'success');
+			showToastMsg(t('admin.ip_mute_success', 'IP禁言已生效') + ` (${targetIP})`, 'success');
 		} else {
 			showToastMsg(t('admin.ip_mute_failed', 'IP禁言失败') + ': ' + (result.error || ''), 'error');
 		}

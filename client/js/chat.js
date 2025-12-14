@@ -67,21 +67,37 @@ export function renderChatArea() {
 
 // Add a message to the chat area
 // 添加消息到聊天区域
-export function addMsg(text, isHistory = false, msgType = 'text', timestamp = null) {
+export function addMsg(text, isHistory = false, msgType = 'text', timestamp = null, messageId = null) {
 	let ts = isHistory ? timestamp : (timestamp || Date.now());
 	if (!ts) return;
+	
+	// 提取消息ID（如果消息是对象格式）
+	const msgId = messageId || (typeof text === 'object' && text.id) || null;
+	
 	if (!isHistory && activeRoomIndex >= 0) {
 		roomsData[activeRoomIndex].messages.push({
 			type: 'me',
 			text,
 			msgType,
-			timestamp: ts
+			timestamp: ts,
+			id: msgId
 		})
-	}	const chatArea = $id('chat-area');
+	}
+	const chatArea = $id('chat-area');
 	if (!chatArea) return;
 	let className = 'bubble me' + (msgType.includes('_private') ? ' private-message' : '');
 	const date = new Date(ts);
-	const time = date.getHours().toString().padStart(2, '0') + ':' + date.getMinutes().toString().padStart(2, '0');	let contentHtml = '';	if (msgType === 'image' || msgType === 'image_private') {
+	const time = date.getHours().toString().padStart(2, '0') + ':' + date.getMinutes().toString().padStart(2, '0');
+	
+	// 处理引用消息
+	let quoteHtml = '';
+	if (typeof text === 'object' && text.quote) {
+		const quoteSender = escapeHTML(text.quote.userName || t('chat.me', '我'));
+		const quoteText = escapeHTML(typeof text.quote.text === 'string' ? text.quote.text.substring(0, 50) : '[消息]');
+		quoteHtml = `<div class="message-quote"><div class="quote-sender">${quoteSender}</div><div class="quote-text">${quoteText}</div></div>`;
+	}
+	
+	let contentHtml = '';	if (msgType === 'image' || msgType === 'image_private') {
 		// Handle image messages (can contain both text and images)
 		if (typeof text === 'object' && text.images && Array.isArray(text.images)) {
 			// New multi-image format: {text: "", images: ["data:image...", "data:image..."]}
@@ -131,9 +147,13 @@ export function addMsg(text, isHistory = false, msgType = 'text', timestamp = nu
 	} else {
 		contentHtml = textToHTML(text)
 	}
-	const div = createElement('div', {
-		class: className
-	}, `<span class="bubble-content">${contentHtml}</span><span class="bubble-meta">${time}</span>`);
+	// 消息状态（已发送/已读）
+	const statusHtml = `<span class="message-status" title="${t('chat.sent', '已发送')}">✓</span>`;
+	
+	const divAttrs = { class: className };
+	if (msgId) divAttrs['data-message-id'] = msgId;
+	
+	const div = createElement('div', divAttrs, `${quoteHtml}<span class="bubble-content">${contentHtml}</span><span class="bubble-meta">${statusHtml} ${time}</span>`);
 	chatArea.appendChild(div);
 	chatArea.scrollTop = chatArea.scrollHeight
 }
@@ -155,9 +175,24 @@ export function addOtherMsg(msg, userName = '', avatar = '', isHistory = false, 
 	if (!ts) return;
 	const chatArea = $id('chat-area');
 	if (!chatArea) return;
+	
+	// 提取消息ID
+	const msgId = (typeof msg === 'object' && msg.id) || null;
+	
 	const bubbleWrap = createElement('div', {
 		class: 'bubble-other-wrap'
-	});	let contentHtml = '';	if (msgType === 'image' || msgType === 'image_private') {
+	});
+	if (msgId) bubbleWrap.setAttribute('data-message-id', msgId);
+	
+	// 处理引用消息
+	let quoteHtml = '';
+	if (typeof msg === 'object' && msg.quote) {
+		const quoteSender = escapeHTML(msg.quote.userName || t('ui.anonymous', 'Anonymous'));
+		const quoteText = escapeHTML(typeof msg.quote.text === 'string' ? msg.quote.text.substring(0, 50) : '[消息]');
+		quoteHtml = `<div class="message-quote"><div class="quote-sender">${quoteSender}</div><div class="quote-text">${quoteText}</div></div>`;
+	}
+	
+	let contentHtml = '';	if (msgType === 'image' || msgType === 'image_private') {
 		// Handle image messages (can contain both text and images)
 		if (typeof msg === 'object' && msg.images && Array.isArray(msg.images)) {
 			// New multi-image format: {text: "", images: ["data:image...", "data:image..."]}
@@ -214,7 +249,7 @@ export function addOtherMsg(msg, userName = '', avatar = '', isHistory = false, 
 	if (msgType === 'file' || msgType === 'file_private') {
 		bubbleClasses += ' file-bubble';
 	}
-	bubbleWrap.innerHTML = `<span class="avatar"></span><div class="bubble-other-main"><div class="${bubbleClasses}"><div class="bubble-other-name">${safeUserName}</div><span class="bubble-content">${contentHtml}</span><span class="bubble-meta">${time}</span></div></div>`;
+	bubbleWrap.innerHTML = `<span class="avatar"></span><div class="bubble-other-main"><div class="${bubbleClasses}">${quoteHtml}<div class="bubble-other-name">${safeUserName}</div><span class="bubble-content">${contentHtml}</span><span class="bubble-meta">${time}</span></div></div>`;
 	const svg = createAvatarSVG(userName);
 	const avatarEl = $('.avatar', bubbleWrap);
 	if (avatarEl) {
@@ -329,7 +364,113 @@ export function setupImagePreview() {
 		if (target.tagName === 'IMG' && target.closest('.bubble-content')) {
 			showImageModal(target.src)
 		}
-	})
+	});
+	
+	// 设置消息右键菜单
+	setupMessageContextMenu();
+}
+
+// 设置消息右键菜单
+function setupMessageContextMenu() {
+	const chatArea = $id('chat-area');
+	if (!chatArea) return;
+	
+	on(chatArea, 'contextmenu', function(e) {
+		const bubble = e.target.closest('.bubble');
+		if (!bubble) return;
+		
+		e.preventDefault();
+		
+		// 移除已存在的菜单
+		const existingMenu = document.querySelector('.message-context-menu');
+		if (existingMenu) existingMenu.remove();
+		
+		const isMyMessage = bubble.classList.contains('me');
+		const messageId = bubble.dataset.messageId || bubble.closest('[data-message-id]')?.dataset.messageId;
+		const isRecalled = bubble.classList.contains('recalled');
+		
+		if (isRecalled) return; // 已撤回的消息不显示菜单
+		
+		// 获取消息内容
+		const bubbleContent = bubble.querySelector('.bubble-content');
+		const messageText = bubbleContent ? bubbleContent.textContent : '';
+		
+		// 创建菜单
+		const menu = createElement('div', { class: 'message-context-menu' });
+		
+		let menuItems = '';
+		
+		// 引用/回复选项
+		menuItems += `<div class="message-context-menu-item" data-action="quote">💬 ${t('chat.quote', '引用')}</div>`;
+		
+		// 复制选项
+		menuItems += `<div class="message-context-menu-item" data-action="copy">📋 ${t('chat.copy', '复制')}</div>`;
+		
+		// 撤回选项（仅自己的消息，2分钟内）
+		if (isMyMessage && messageId) {
+			menuItems += `<div class="message-context-menu-item danger" data-action="recall">🗑️ ${t('chat.recall', '撤回')}</div>`;
+		}
+		
+		menu.innerHTML = menuItems;
+		
+		// 定位菜单
+		menu.style.left = e.clientX + 'px';
+		menu.style.top = e.clientY + 'px';
+		
+		document.body.appendChild(menu);
+		
+		// 确保菜单不超出屏幕
+		const rect = menu.getBoundingClientRect();
+		if (rect.right > window.innerWidth) {
+			menu.style.left = (window.innerWidth - rect.width - 10) + 'px';
+		}
+		if (rect.bottom > window.innerHeight) {
+			menu.style.top = (window.innerHeight - rect.height - 10) + 'px';
+		}
+		
+		// 菜单点击事件
+		on(menu, 'click', function(ev) {
+			const action = ev.target.dataset.action;
+			if (!action) return;
+			
+			if (action === 'quote') {
+				// 引用消息
+				const rd = roomsData[activeRoomIndex];
+				const userName = isMyMessage ? (rd?.myUserName || t('chat.me', '我')) : (bubble.querySelector('.bubble-other-name')?.textContent || '');
+				
+				import('./util.message.js').then(module => {
+					module.setQuotedMessage({
+						id: messageId,
+						text: messageText,
+						userName: userName
+					});
+				});
+			} else if (action === 'copy') {
+				// 复制消息
+				navigator.clipboard.writeText(messageText).then(() => {
+					showToastMsg(t('chat.copied', '已复制'), 'success');
+				}).catch(() => {
+					showToastMsg(t('chat.copy_failed', '复制失败'), 'error');
+				});
+			} else if (action === 'recall') {
+				// 撤回消息
+				import('./util.message.js').then(module => {
+					module.recallMessage(messageId);
+				});
+			}
+			
+			menu.remove();
+		});
+		
+		// 点击其他地方关闭菜单
+		const closeMenu = (ev) => {
+			if (!menu.contains(ev.target)) {
+				menu.remove();
+				document.removeEventListener('click', closeMenu);
+			}
+		};
+		setTimeout(() => document.addEventListener('click', closeMenu), 0);
+	});
 }
 
 // Show the image modal

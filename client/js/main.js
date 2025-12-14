@@ -41,6 +41,36 @@ import {
 } from './util.settings.js';
 import { t, updateStaticTexts } from './util.i18n.js';
 
+// 从 util.notification.js 中导入通知功能
+// Import notification functions from util.notification.js
+import {
+	initNotifications,
+	notifyNewMessage,
+	requestNotificationPermission
+} from './util.notification.js';
+
+// 从 util.typing.js 中导入输入状态功能
+// Import typing indicator functions from util.typing.js
+import {
+	handleInputChange,
+	clearTypingStatus
+} from './util.typing.js';
+
+// 从 util.filter.js 中导入敏感词过滤功能
+// Import sensitive word filter functions from util.filter.js
+import {
+	initSensitiveFilter,
+	filterSensitiveWords
+} from './util.filter.js';
+
+// 从 util.message.js 中导入消息工具功能
+// Import message utility functions from util.message.js
+import {
+	generateMessageId,
+	getQuotedMessage,
+	clearQuotedMessage
+} from './util.message.js';
+
 // 从 util.theme.js 中导入主题功能函数
 // Import theme functions from util.theme.js
 import {
@@ -104,6 +134,11 @@ window.config = {
 initSettings();
 updateStaticTexts();
 
+// 初始化通知和敏感词过滤
+// Initialize notifications and sensitive word filter
+initNotifications();
+initSensitiveFilter();
+
 // 把一些函数挂载到 window 对象上供其他模块使用
 // Expose functions to the global window object for accessibility
 window.addSystemMsg = addSystemMsg;
@@ -115,6 +150,8 @@ window.setupEmojiPicker = setupEmojiPicker;
 window.handleFileMessage = handleFileMessage;
 window.downloadFile = downloadFile;
 window.initAdminToolbar = initAdminToolbar;
+window.notifyNewMessage = notifyNewMessage;
+window.requestNotificationPermission = requestNotificationPermission;
 
 // 当 DOM 内容加载完成后执行初始化逻辑
 // Run initialization logic when the DOM content is fully loaded
@@ -192,6 +229,12 @@ window.addEventListener('DOMContentLoaded', async () => {
 				sendMessage();
 			}
 		});
+		
+		// 监听输入事件，发送正在输入状态
+		// Listen for input events to send typing status
+		input.addEventListener('input', () => {
+			handleInputChange();
+		});
 	}
 	
 	// 发送消息的统一函数 - 单聊模式
@@ -213,10 +256,18 @@ window.addEventListener('DOMContentLoaded', async () => {
 			return;
 		}
 		
-		const text = input.innerText.trim(); // 获取输入的文本 / Get input text
+		let text = input.innerText.trim(); // 获取输入的文本 / Get input text
 		const images = imagePasteHandler ? imagePasteHandler.getCurrentImages() : []; // 获取所有图片
 
 		if (!text && images.length === 0) return; // 如果没有文本且没有图片，则不发送
+		
+		// 敏感词过滤
+		// Sensitive word filter
+		if (text) {
+			const filterResult = filterSensitiveWords(text);
+			text = filterResult.text;
+		}
+		
 		const rd = roomsData[activeRoomIndex]; // 当前房间数据 / Current room data
 		
 		if (rd && rd.chat) {
@@ -227,12 +278,20 @@ window.addEventListener('DOMContentLoaded', async () => {
 				return;
 			}
 			
+			// 生成消息ID
+			const messageId = generateMessageId();
+			
+			// 获取引用消息
+			const quotedMsg = getQuotedMessage();
+			
 			if (images.length > 0) {
 				// 发送包含图片的消息 (支持多图和文字合并)
 				// Send message with images (supports multiple images and text combined)
 				const messageContent = {
+					id: messageId,
 					text: text || '', // 包含文字内容，如果有的话
-					images: images    // 包含所有图片数据
+					images: images,   // 包含所有图片数据
+					quote: quotedMsg ? { id: quotedMsg.id, text: quotedMsg.text, userName: quotedMsg.userName } : null
 				};
 
 				// 私聊图片消息加密并发送
@@ -256,7 +315,8 @@ window.addEventListener('DOMContentLoaded', async () => {
 					// 保存到私聊记录
 					saveMyMessageToPrivateChat(rd.privateChatTargetId, {
 						text: messageContent,
-						msgType: 'image_private'
+						msgType: 'image_private',
+						id: messageId
 					});
 				} else {
 					addSystemMsg(`${t('system.private_message_failed', 'Cannot send private message to')} ${rd.privateChatTargetName}. ${t('system.user_not_connected', 'User might not be fully connected.')}`)
@@ -266,6 +326,12 @@ window.addEventListener('DOMContentLoaded', async () => {
 			} else if (text) {
 				// 发送纯文本消息
 				// Send text-only message
+				const messageData = {
+					id: messageId,
+					text: text,
+					quote: quotedMsg ? { id: quotedMsg.id, text: quotedMsg.text, userName: quotedMsg.userName } : null
+				};
+				
 				// 私聊消息加密并发送
 				// Encrypt and send private message
 				const targetClient = rd.chat.channel[rd.privateChatTargetId];
@@ -273,7 +339,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 					const clientMessagePayload = {
 						a: 'm',
 						t: 'text_private',
-						d: text
+						d: messageData
 					};
 					const encryptedClientMessage = rd.chat.encryptClientMessage(clientMessagePayload, targetClient.shared);
 					const serverRelayPayload = {
@@ -287,12 +353,19 @@ window.addEventListener('DOMContentLoaded', async () => {
 					// 保存到私聊记录
 					saveMyMessageToPrivateChat(rd.privateChatTargetId, {
 						text: text,
-						msgType: 'text_private'
+						msgType: 'text_private',
+						id: messageId
 					});
 				} else {
 					addSystemMsg(`${t('system.private_message_failed', 'Cannot send private message to')} ${rd.privateChatTargetName}. ${t('system.user_not_connected', 'User might not be fully connected.')}`)
 				}
 			}
+			
+			// 清除引用消息
+			clearQuotedMessage();
+			
+			// 清除输入状态
+			clearTypingStatus();
 			
 			// 清空输入框并触发 input 事件
 			// Clear input and trigger input event
