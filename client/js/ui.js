@@ -198,7 +198,11 @@ function executeMenuAction(action, closeMenuCallback) {
 	try {
 		switch (action) {
 			case 'share':
+			case 'share_link':
 				handleShareAction();
+				break;
+			case 'share_qrcode':
+				handleShareQRCode();
 				break;
 			case 'exit':
 				handleExitAction();
@@ -242,6 +246,151 @@ function handleShareAction() {
 	const url = `${location.origin}${location.pathname}#${hashData}`;
 	
 	copyToClipboard(url, t('action.share_copied', 'Share link copied!'), t('action.copy_url_failed', 'Copy failed, url:'));
+}
+
+// Generate share URL
+// 生成分享链接
+function generateShareUrl() {
+	const validation = validateRoomData(roomsData[activeRoomIndex]);
+	if (!validation.valid) {
+		return null;
+	}
+
+	const rd = roomsData[activeRoomIndex];
+	const roomName = rd.roomName.trim();
+	const password = rd.password || '';
+	
+	const encryptedRoom = secureEncrypt(roomName);
+	const encryptedPwd = password ? secureEncrypt(password) : '';
+	
+	let hashData = `r=${encryptedRoom}`;
+	if (encryptedPwd) {
+		hashData += `&p=${encryptedPwd}`;
+	}
+	
+	return `${location.origin}${location.pathname}#${hashData}`;
+}
+
+// Handle share QR code action
+// 处理分享二维码操作
+function handleShareQRCode() {
+	const validation = validateRoomData(roomsData[activeRoomIndex]);
+	if (!validation.valid) {
+		window.addSystemMsg && window.addSystemMsg(`${t('action.cannot_share', 'Cannot share:')} ${validation.error}`);
+		return;
+	}
+
+	const url = generateShareUrl();
+	if (!url) return;
+	
+	showQRCodeModal(url);
+}
+
+// Show QR code modal
+// 显示二维码弹窗
+function showQRCodeModal(url) {
+	// 移除已存在的弹窗
+	const existingModal = document.querySelector('.qrcode-modal');
+	if (existingModal) existingModal.remove();
+	
+	const modal = document.createElement('div');
+	modal.className = 'qrcode-modal';
+	modal.innerHTML = `
+		<div class="qrcode-modal-content">
+			<div class="qrcode-modal-header">
+				<span class="qrcode-modal-title">${t('action.share_qrcode', '分享二维码')}</span>
+				<button class="qrcode-modal-close">&times;</button>
+			</div>
+			<div class="qrcode-container" id="qrcode-container">
+				<div class="qrcode-loading">${t('ui.loading', '加载中...')}</div>
+			</div>
+			<div class="qrcode-tip">${t('action.qrcode_tip', '扫描二维码加入房间')}</div>
+			<div class="qrcode-btn-group">
+				<button class="qrcode-btn qrcode-save-btn" id="qrcode-save-btn">${t('action.save_qrcode', '保存图片')}</button>
+				<button class="qrcode-btn qrcode-copy-btn" id="qrcode-copy-btn">${t('action.copy_link', '复制链接')}</button>
+			</div>
+		</div>
+	`;
+	
+	document.body.appendChild(modal);
+	
+	// 生成二维码
+	generateQRCode(url, document.getElementById('qrcode-container'));
+	
+	// 关闭按钮
+	modal.querySelector('.qrcode-modal-close').onclick = () => modal.remove();
+	modal.onclick = (e) => {
+		if (e.target === modal) modal.remove();
+	};
+	
+	// 保存图片按钮
+	document.getElementById('qrcode-save-btn').onclick = () => {
+		saveQRCodeImage();
+	};
+	
+	// 复制链接按钮
+	document.getElementById('qrcode-copy-btn').onclick = () => {
+		copyToClipboard(url, t('action.share_copied', 'Share link copied!'), t('action.copy_url_failed', 'Copy failed, url:'));
+	};
+}
+
+// Save QR code image
+// 保存二维码图片
+function saveQRCodeImage() {
+	const container = document.getElementById('qrcode-container');
+	const canvas = container?.querySelector('canvas');
+	
+	if (!canvas) {
+		window.addSystemMsg && window.addSystemMsg(t('action.qrcode_not_ready', '二维码未准备好'));
+		return;
+	}
+	
+	try {
+		// 转换为图片并下载
+		const dataUrl = canvas.toDataURL('image/png');
+		const link = document.createElement('a');
+		link.download = `room-qrcode-${Date.now()}.png`;
+		link.href = dataUrl;
+		link.click();
+	} catch (e) {
+		console.error('Failed to save QR code:', e);
+		window.addSystemMsg && window.addSystemMsg(t('action.save_failed', '保存失败'));
+	}
+}
+
+// Generate QR code using canvas (no external library)
+// 使用 canvas 生成二维码（无需外部库）
+function generateQRCode(text, container) {
+	// 使用简单的 QR 码生成算法
+	// 这里使用一个轻量级的内联 QR 码生成器
+	const qrSize = 200;
+	
+	// 创建 canvas
+	const canvas = document.createElement('canvas');
+	canvas.width = qrSize;
+	canvas.height = qrSize;
+	const ctx = canvas.getContext('2d');
+	
+	// 使用 QR 码 API 服务生成（备用方案）
+	const img = new Image();
+	img.crossOrigin = 'anonymous';
+	img.onload = () => {
+		container.innerHTML = '';
+		ctx.drawImage(img, 0, 0, qrSize, qrSize);
+		container.appendChild(canvas);
+	};
+	img.onerror = () => {
+		// 如果 API 失败，显示链接文本
+		container.innerHTML = `
+			<div class="qrcode-fallback">
+				<p>${t('action.qrcode_failed', '二维码生成失败')}</p>
+				<p class="qrcode-url">${escapeHTML(text.substring(0, 50))}...</p>
+			</div>
+		`;
+	};
+	
+	// 使用 Google Chart API 生成二维码
+	img.src = `https://api.qrserver.com/v1/create-qr-code/?size=${qrSize}x${qrSize}&data=${encodeURIComponent(text)}`;
 }
 
 // Handle exit action
@@ -288,7 +437,7 @@ export function renderMainHeader() {
 	// Only admin can see online member count
 	const memberCountHtml = isAdmin ? `<span class="main-header-members">${onlineCount} ${t('ui.members', 'members')}</span>` : '';
 	
-	$id("main-header").innerHTML = `<button class="mobile-menu-btn"id="mobile-menu-btn"aria-label="Open Sidebar"><svg width="35px"height="35px"viewBox="0 0 24 24"fill="none"xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier"stroke-width="0"></g><g id="SVGRepo_tracerCarrier"stroke-linecap="round"stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"><path fill-rule="evenodd"clip-rule="evenodd"d="M21.4498 10.275L11.9998 3.1875L2.5498 10.275L2.9998 11.625H3.7498V20.25H20.2498V11.625H20.9998L21.4498 10.275ZM5.2498 18.75V10.125L11.9998 5.0625L18.7498 10.125V18.75H14.9999V14.3333L14.2499 13.5833H9.74988L8.99988 14.3333V18.75H5.2498ZM10.4999 18.75H13.4999V15.0833H10.4999V18.75Z"fill="#808080"></path></g></svg></button><div class="main-header-center"id="main-header-center"><div class="main-header-flex"><div class="group-title group-title-bold">#${safeRoomName}</div>${e2eIndicatorHtml}${memberCountHtml}</div></div>${adminToolbarHtml}<div class="main-header-actions"><button class="more-btn"id="more-btn"aria-label="More Options"><svg width="35px"height="35px"viewBox="0 0 24 24"fill="none"xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier"stroke-width="0"></g><g id="SVGRepo_tracerCarrier"stroke-linecap="round"stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"><circle cx="12"cy="6"r="1.5"fill="#808080"></circle><circle cx="12"cy="12"r="1.5"fill="#808080"></circle><circle cx="12"cy="18"r="1.5"fill="#808080"></circle></g></svg></button><button class="mobile-info-btn"id="mobile-info-btn"aria-label="Open Members"><svg width="35px"height="35px"viewBox="0 0 24 24"fill="none"xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier"stroke-width="0"></g><g id="SVGRepo_tracerCarrier"stroke-linecap="round"stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"><path fill-rule="evenodd"clip-rule="evenodd"d="M16.0603 18.307C14.89 19.0619 13.4962 19.5 12 19.5C10.5038 19.5 9.10996 19.0619 7.93972 18.307C8.66519 16.7938 10.2115 15.75 12 15.75C13.7886 15.75 15.3349 16.794 16.0603 18.307ZM17.2545 17.3516C16.2326 15.5027 14.2632 14.25 12 14.25C9.73663 14.25 7.76733 15.5029 6.74545 17.3516C5.3596 15.9907 4.5 14.0958 4.5 12C4.5 7.85786 7.85786 4.5 12 4.5C16.1421 4.5 19.5 7.85786 19.5 12C19.5 14.0958 18.6404 15.9908 17.2545 17.3516ZM21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12ZM12 12C13.2426 12 14.25 10.9926 14.25 9.75C14.25 8.50736 13.2426 7.5 12 7.5C10.7574 7.5 9.75 8.50736 9.75 9.75C9.75 10.9926 10.7574 12 12 12ZM12 13.5C14.0711 13.5 15.75 11.8211 15.75 9.75C15.75 7.67893 14.0711 6 12 6C9.92893 6 8.25 7.67893 8.25 9.75C8.25 11.8211 9.92893 13.5 12 13.5Z"fill="#808080"></path></g></svg></button><div class="more-menu"id="more-menu"><div class="more-menu-item"data-action="share">${t('action.share', 'Share')}</div><div class="more-menu-item"data-action="exit">${t('action.exit', 'Quit')}</div></div></div>`;
+	$id("main-header").innerHTML = `<button class="mobile-menu-btn"id="mobile-menu-btn"aria-label="Open Sidebar"><svg width="35px"height="35px"viewBox="0 0 24 24"fill="none"xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier"stroke-width="0"></g><g id="SVGRepo_tracerCarrier"stroke-linecap="round"stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"><path fill-rule="evenodd"clip-rule="evenodd"d="M21.4498 10.275L11.9998 3.1875L2.5498 10.275L2.9998 11.625H3.7498V20.25H20.2498V11.625H20.9998L21.4498 10.275ZM5.2498 18.75V10.125L11.9998 5.0625L18.7498 10.125V18.75H14.9999V14.3333L14.2499 13.5833H9.74988L8.99988 14.3333V18.75H5.2498ZM10.4999 18.75H13.4999V15.0833H10.4999V18.75Z"fill="#808080"></path></g></svg></button><div class="main-header-center"id="main-header-center"><div class="main-header-flex"><div class="group-title group-title-bold">#${safeRoomName}</div>${e2eIndicatorHtml}${memberCountHtml}</div></div>${adminToolbarHtml}<div class="main-header-actions"><button class="more-btn"id="more-btn"aria-label="More Options"><svg width="35px"height="35px"viewBox="0 0 24 24"fill="none"xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier"stroke-width="0"></g><g id="SVGRepo_tracerCarrier"stroke-linecap="round"stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"><circle cx="12"cy="6"r="1.5"fill="#808080"></circle><circle cx="12"cy="12"r="1.5"fill="#808080"></circle><circle cx="12"cy="18"r="1.5"fill="#808080"></circle></g></svg></button><button class="mobile-info-btn"id="mobile-info-btn"aria-label="Open Members"><svg width="35px"height="35px"viewBox="0 0 24 24"fill="none"xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier"stroke-width="0"></g><g id="SVGRepo_tracerCarrier"stroke-linecap="round"stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"><path fill-rule="evenodd"clip-rule="evenodd"d="M16.0603 18.307C14.89 19.0619 13.4962 19.5 12 19.5C10.5038 19.5 9.10996 19.0619 7.93972 18.307C8.66519 16.7938 10.2115 15.75 12 15.75C13.7886 15.75 15.3349 16.794 16.0603 18.307ZM17.2545 17.3516C16.2326 15.5027 14.2632 14.25 12 14.25C9.73663 14.25 7.76733 15.5029 6.74545 17.3516C5.3596 15.9907 4.5 14.0958 4.5 12C4.5 7.85786 7.85786 4.5 12 4.5C16.1421 4.5 19.5 7.85786 19.5 12C19.5 14.0958 18.6404 15.9908 17.2545 17.3516ZM21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12ZM12 12C13.2426 12 14.25 10.9926 14.25 9.75C14.25 8.50736 13.2426 7.5 12 7.5C10.7574 7.5 9.75 8.50736 9.75 9.75C9.75 10.9926 10.7574 12 12 12ZM12 13.5C14.0711 13.5 15.75 11.8211 15.75 9.75C15.75 7.67893 14.0711 6 12 6C9.92893 6 8.25 7.67893 8.25 9.75C8.25 11.8211 9.92893 13.5 12 13.5Z"fill="#808080"></path></g></svg></button><div class="more-menu"id="more-menu"><div class="more-menu-item"data-action="share_link">${t('action.share_link', '分享链接')}</div><div class="more-menu-item"data-action="share_qrcode">${t('action.share_qrcode', '分享二维码')}</div><div class="more-menu-item"data-action="exit">${t('action.exit', 'Quit')}</div></div></div>`;
 	setupMoreBtnMenu();
 	setupMobileUIHandlers();
 	

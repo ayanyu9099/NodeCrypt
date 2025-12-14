@@ -2837,3 +2837,155 @@ h2{
 .captcha-refresh-btn:active {
 	transform: rotate(360deg);
 }
+
+
+/* QR Code Modal Styles */
+/* 二维码弹窗样式 */
+.qrcode-modal {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(0, 0, 0, 0.5);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 10000;
+	animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+	from { opacity: 0; }
+	to { opacity: 1; }
+}
+
+.qrcode-modal-content {
+	background: #fff;
+	border-radius: 16px;
+	padding: 24px;
+	min-width: 280px;
+	max-width: 90vw;
+	box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+	animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+	from {
+		opacity: 0;
+		transform: translateY(20px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.qrcode-modal-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 20px;
+}
+
+.qrcode-modal-title {
+	font-size: 18px;
+	font-weight: 600;
+	color: #333;
+}
+
+.qrcode-modal-close {
+	background: none;
+	border: none;
+	font-size: 24px;
+	color: #999;
+	cursor: pointer;
+	padding: 0;
+	width: 32px;
+	height: 32px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 50%;
+	transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.qrcode-modal-close:hover {
+	background: #f5f5f5;
+	color: #333;
+}
+
+.qrcode-container {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 200px;
+	background: #fafafa;
+	border-radius: 12px;
+	padding: 20px;
+	margin-bottom: 16px;
+}
+
+.qrcode-container canvas {
+	border-radius: 8px;
+}
+
+.qrcode-loading {
+	color: #999;
+	font-size: 14px;
+}
+
+.qrcode-tip {
+	text-align: center;
+	color: #666;
+	font-size: 14px;
+	margin-bottom: 16px;
+}
+
+.qrcode-btn-group {
+	display: flex;
+	gap: 10px;
+}
+
+.qrcode-btn {
+	flex: 1;
+	padding: 12px;
+	color: #fff;
+	border: none;
+	border-radius: 8px;
+	font-size: 14px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.qrcode-save-btn {
+	background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+}
+
+.qrcode-copy-btn {
+	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.qrcode-btn:hover {
+	opacity: 0.9;
+}
+
+.qrcode-btn:active {
+	transform: scale(0.98);
+}
+
+.qrcode-fallback {
+	text-align: center;
+	color: #666;
+}
+
+.qrcode-fallback p {
+	margin: 8px 0;
+}
+
+.qrcode-url {
+	font-size: 12px;
+	color: #999;
+	word-break: break-all;
+}

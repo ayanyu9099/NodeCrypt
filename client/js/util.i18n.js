@@ -126,6 +126,14 @@ const LANGUAGES = {
 			
 			// Actions and menu
 			'action.share': 'Share',
+			'action.share_link': 'Share Link',
+			'action.share_qrcode': 'Share QR Code',
+			'action.copy_link': 'Copy Link',
+			'action.save_qrcode': 'Save Image',
+			'action.qrcode_tip': 'Scan QR code to join room',
+			'action.qrcode_failed': 'QR code generation failed',
+			'action.qrcode_not_ready': 'QR code not ready',
+			'action.save_failed': 'Save failed',
 			'action.exit': 'Exit',
 			'action.emoji': 'Emoji',
 			'action.settings': 'Settings',
@@ -306,6 +314,14 @@ const LANGUAGES = {
 			
 			// Actions and menu
 			'action.share': '分享',
+			'action.share_link': '分享链接',
+			'action.share_qrcode': '分享二维码',
+			'action.copy_link': '复制链接',
+			'action.save_qrcode': '保存图片',
+			'action.qrcode_tip': '扫描二维码加入房间',
+			'action.qrcode_failed': '二维码生成失败',
+			'action.qrcode_not_ready': '二维码未准备好',
+			'action.save_failed': '保存失败',
 			'action.exit': '退出',
 			'action.emoji': '表情',
 			'action.settings': '设置',
