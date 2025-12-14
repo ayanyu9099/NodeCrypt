@@ -30,22 +30,32 @@ export function playNotificationSound() {
 			notificationSound.resume();
 		}
 		
-		// 创建振荡器生成提示音
-		const oscillator = notificationSound.createOscillator();
-		const gainNode = notificationSound.createGain();
+		const currentTime = notificationSound.currentTime;
 		
-		oscillator.connect(gainNode);
-		gainNode.connect(notificationSound.destination);
+		// 微博风格的"滴滴"提示音
+		// 第一个"滴"音 - 高频短促
+		const osc1 = notificationSound.createOscillator();
+		const gain1 = notificationSound.createGain();
+		osc1.connect(gain1);
+		gain1.connect(notificationSound.destination);
+		osc1.frequency.value = 1800; // 高频音
+		osc1.type = 'sine';
+		gain1.gain.setValueAtTime(0.5, currentTime);
+		gain1.gain.exponentialRampToValueAtTime(0.01, currentTime + 0.08);
+		osc1.start(currentTime);
+		osc1.stop(currentTime + 0.08);
 		
-		// 设置音调和音量
-		oscillator.frequency.value = 800; // 频率 Hz
-		oscillator.type = 'sine';
-		gainNode.gain.value = 0.3; // 音量
-		
-		// 播放短促的提示音
-		oscillator.start();
-		gainNode.gain.exponentialRampToValueAtTime(0.01, notificationSound.currentTime + 0.2);
-		oscillator.stop(notificationSound.currentTime + 0.2);
+		// 第二个"滴"音 - 稍低一点，间隔短
+		const osc2 = notificationSound.createOscillator();
+		const gain2 = notificationSound.createGain();
+		osc2.connect(gain2);
+		gain2.connect(notificationSound.destination);
+		osc2.frequency.value = 1400; // 稍低频率
+		osc2.type = 'sine';
+		gain2.gain.setValueAtTime(0.5, currentTime + 0.12);
+		gain2.gain.exponentialRampToValueAtTime(0.01, currentTime + 0.2);
+		osc2.start(currentTime + 0.12);
+		osc2.stop(currentTime + 0.2);
 	} catch (e) {
 		console.warn('Failed to play notification sound:', e);
 	}
