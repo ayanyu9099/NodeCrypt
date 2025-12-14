@@ -1911,6 +1911,10 @@ h2{
 	margin-top: 8px;
 }
 
+.input-group.password-group > label {
+	margin-bottom: 10px !important;
+}
+
 /* Admin group styles */
 .admin-group {
 	margin-top: 8px;
