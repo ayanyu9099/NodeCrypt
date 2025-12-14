@@ -945,6 +945,10 @@ export function loginFormHandler(modal) {
 			btn.innerText = t('ui.connecting', 'Connecting...');
 		}
 		
+		// 保存用户名到 localStorage（记住用户名功能）
+		// Save username to localStorage (remember username feature)
+		localStorage.setItem('savedUserName', userName);
+		
 		// 传递用户角色到 joinRoom
 		window.joinRoom(userName, roomName, password, modal, function(success) {
 			if (!success && btn) {
@@ -1015,6 +1019,10 @@ export function generateLoginForm(isModal = false) {
 	const idPrefix = isModal ? '-modal' : '';
 	const rooms = getAvailableRooms();
 	
+	// 读取保存的用户名
+	// Load saved username
+	const savedUserName = localStorage.getItem('savedUserName') || '';
+	
 	// 生成房间选择选项（所有房间都需要密码）
 	const roomOptions = rooms.map(room => {
 		return `<option value="${escapeHTML(room.name)}">🔒 ${escapeHTML(room.name)}</option>`;
@@ -1028,7 +1036,7 @@ export function generateLoginForm(isModal = false) {
 	return `
 		<h2 class="login-title">${t('ui.encrypted_chat', '加密聊天系统')}</h2>
 		<div class="input-group">
-			<input id="userName${idPrefix}" type="text" autocomplete="username" required minlength="1" maxlength="15" placeholder="${t('ui.username', 'Username')}">
+			<input id="userName${idPrefix}" type="text" autocomplete="username" required minlength="1" maxlength="15" placeholder="${t('ui.username', 'Username')}" value="${escapeHTML(savedUserName)}">
 		</div>
 		<div class="input-group">
 			<select id="roomName${idPrefix}" required class="room-select">
