@@ -123,6 +123,11 @@ export function joinRoom(userName, roomName, password, modal = null, onResult, u
 	const callbacks = {
 		onServerClosed: () => {
 			console.log('Node connection closed');
+			// 连接关闭时，从房间列表中移除
+			const roomIdx = roomsData.findIndex(r => r === newRd);
+			if (roomIdx !== -1) {
+				roomsData.splice(roomIdx, 1);
+			}
 			if (onResult && !closed) {
 				closed = true;
 				onResult(false)

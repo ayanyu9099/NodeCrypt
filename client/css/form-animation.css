@@ -12,18 +12,24 @@
   color: #888;
   transition: 0.25s cubic-bezier(0.68, -0.55, 0.265, 1.55);
   z-index: 1;
+  background: #fff;
+  padding: 0 4px;
 }
 
+/* 输入框获得焦点或有内容时，标签上移 */
 .input-group input:focus + .floating-label,
 .input-group input:not(:placeholder-shown) + .floating-label {
   color: #30a8f7;
-  transform: translateY(-40px);
+  transform: translateY(-28px);
+  font-size: 12px;
 }
 
-/* Select 元素的浮动标签 */
-.input-group select + .floating-label {
-  top: -10px;
-  font-size: 12px;
+/* Select 元素的浮动标签 - 始终显示在上方 */
+.input-group select + .floating-label,
+.input-group .floating-label-select {
+  top: -10px !important;
+  transform: none !important;
+  font-size: 12px !important;
   background: #fff;
   padding: 0 4px;
   color: #30a8f7;
@@ -41,6 +47,14 @@
 .input-group select {
   position: relative;
   z-index: 2;
-  -webkit-appearance: none;
   touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Safari 移动端特殊处理 */
+@supports (-webkit-touch-callout: none) {
+  .input-group input,
+  .input-group select {
+    font-size: 16px; /* 防止 iOS 自动缩放 */
+  }
 }

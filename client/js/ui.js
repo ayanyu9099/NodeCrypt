@@ -648,7 +648,7 @@ export function generateLoginForm(isModal = false) {
 	
 	return `
 		<div class="input-group">
-			<input id="userName${idPrefix}" type="text" autocomplete="username" required minlength="1" maxlength="15" placeholder="">
+			<input id="userName${idPrefix}" type="text" autocomplete="username" required minlength="1" maxlength="15" placeholder=" ">
 			<label for="userName${idPrefix}" class="floating-label">${t('ui.username', 'Username')}</label>
 		</div>
 		<div class="input-group">
@@ -659,11 +659,11 @@ export function generateLoginForm(isModal = false) {
 			<label for="roomName${idPrefix}" class="floating-label floating-label-select">${t('ui.room', '房间')}</label>
 		</div>
 		<div class="input-group password-group" id="password-group${idPrefix}" style="display: none;">
-			<input id="password${idPrefix}" type="password" autocomplete="off" minlength="1" maxlength="30" placeholder="">
+			<input id="password${idPrefix}" type="password" autocomplete="off" minlength="1" maxlength="30" placeholder=" ">
 			<label for="password${idPrefix}" class="floating-label">${t('ui.room_password', '房间密码')}</label>
 		</div>
 		<div class="input-group admin-group">
-			<input id="adminPassword${idPrefix}" type="password" autocomplete="off" maxlength="30" placeholder="">
+			<input id="adminPassword${idPrefix}" type="password" autocomplete="off" maxlength="30" placeholder=" ">
 			<label for="adminPassword${idPrefix}" class="floating-label">${t('ui.admin_password', '管理员密码')} <span class="optional">${t('ui.optional', '(可选)')}</span></label>
 		</div>
 		<button type="submit" class="login-btn">${t('ui.enter', 'ENTER')}</button>
