@@ -32,6 +32,10 @@ import {
 	handleReadReceipt,
 	handleRecallMessage
 } from './util.message.js';
+import {
+	setConnectionStatus
+} from './util.connection.js';
+
 let roomsData = [];
 let activeRoomIndex = -1;
 
@@ -130,10 +134,14 @@ export function joinRoom(userName, roomName, password, modal = null, onResult, u
 	// 显示用户角色标识
 	updateRoleBadge(userRole);
 	
+	// 设置连接状态为连接中
+	setConnectionStatus('connecting');
+	
 	let closed = false;
 	const callbacks = {
 		onServerClosed: () => {
 			console.log('Node connection closed');
+			setConnectionStatus('disconnected');
 			// 连接关闭时，从房间列表中移除
 			const roomIdx = roomsData.findIndex(r => r === newRd);
 			if (roomIdx !== -1) {
@@ -145,6 +153,7 @@ export function joinRoom(userName, roomName, password, modal = null, onResult, u
 			}
 		},
 		onServerSecured: () => {
+			setConnectionStatus('connected');
 			if (modal) modal.remove();
 			else {
 				const loginContainer = $id('login-container');

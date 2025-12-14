@@ -121,6 +121,10 @@ import {	renderUserList,       // 渲染用户列表 / Render user list
 	initFlipCard          // 初始化翻转卡片功能 / Initialize flip card functionality
 } from './ui.js';
 
+// 导入连接管理工具
+// Import connection management utilities
+import { initConnectionManager } from './util.connection.js';
+
 // 设置全局配置参数
 // Set global configuration parameters
 window.config = {
@@ -194,6 +198,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 	// initSettings();
 	// updateStaticTexts(); // 在初始化设置后更新静态文本 / Update static texts after initializing settings
 	initTheme(); // 初始化主题 / Initialize theme
+	initConnectionManager(); // 初始化连接管理器 / Initialize connection manager
 	
 	const settingsBtn = $id('settings-btn'); // 设置按钮 / Settings button
 	if (settingsBtn) {
