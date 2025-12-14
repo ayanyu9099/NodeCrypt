@@ -271,7 +271,8 @@ class NodeCrypt {
 					if (this.channel[clientId].shared && this.channel[clientId].username) {
 						clients.push({
 							clientId: clientId,
-							username: this.channel[clientId].username
+							username: this.channel[clientId].username,
+							role: this.channel[clientId].role || 'user'  // 包含角色信息
 						})
 					}
 				}
@@ -333,6 +334,25 @@ class NodeCrypt {
 						})
 					} catch (error) {
 						this.logEvent('onMessage-client-secured-callback', error, 'error')
+					}
+				}
+				// 用户角色信息更新后，重新通知客户端列表更新
+				// After user role info is updated, notify client list update
+				if (this.callbacks.onClientList) {
+					let clients = [];
+					for (const cid in this.channel) {
+						if (this.channel[cid].shared && this.channel[cid].username) {
+							clients.push({
+								clientId: cid,
+								username: this.channel[cid].username,
+								role: this.channel[cid].role || 'user'
+							})
+						}
+					}
+					try {
+						this.callbacks.onClientList(clients)
+					} catch (error) {
+						this.logEvent('onMessage-client-list-after-secured-callback', error, 'error')
 					}
 				}
 				return
