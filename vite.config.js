@@ -84,6 +84,14 @@ export default defineConfig({
 		// Open browser
 		// 打开浏览器
 		open: true,
+		// Proxy API requests to Wrangler dev server
+		// 将 API 请求代理到 Wrangler 开发服务器
+		proxy: {
+			'/api': {
+				target: 'http://localhost:8787',
+				changeOrigin: true,
+			},
+		},
 	},
 	// Optimize dependencies
 	// 优化依赖

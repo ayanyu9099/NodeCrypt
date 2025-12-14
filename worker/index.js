@@ -14,6 +14,18 @@ export default {
 
     // 处理API请求
     if (url.pathname.startsWith('/api/')) {
+      const corsHeaders = {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type"
+      };
+      
+      // 处理 OPTIONS 预检请求
+      if (request.method === 'OPTIONS') {
+        return new Response(null, { headers: corsHeaders });
+      }
+      
       // 获取房间配置（不包含密码）
       if (url.pathname === '/api/rooms') {
         const rooms = getRoomsConfig(env);
@@ -24,8 +36,14 @@ export default {
           description: r.description,
           hasPassword: true  // 所有房间都需要密码
         }));
-        return new Response(JSON.stringify({ rooms: publicRooms }), { 
-          headers: { "Content-Type": "application/json" } 
+        return new Response(JSON.stringify({ 
+          rooms: publicRooms,
+          debug: {
+            roomCount: rooms.length,
+            envKeys: Object.keys(env).filter(k => k.startsWith('ROOM_'))
+          }
+        }), { 
+          headers: corsHeaders 
         });
       }
       
@@ -41,7 +59,7 @@ export default {
             return new Response(JSON.stringify({ 
               valid: false, 
               error: 'room_not_found' 
-            }), { headers: { "Content-Type": "application/json" } });
+            }), { headers: corsHeaders });
           }
           
           // 检查管理员密码
@@ -49,7 +67,7 @@ export default {
             return new Response(JSON.stringify({ 
               valid: true, 
               role: 'admin' 
-            }), { headers: { "Content-Type": "application/json" } });
+            }), { headers: corsHeaders });
           }
           
           // 检查房间密码
@@ -57,22 +75,22 @@ export default {
             return new Response(JSON.stringify({ 
               valid: false, 
               error: 'wrong_password' 
-            }), { headers: { "Content-Type": "application/json" } });
+            }), { headers: corsHeaders });
           }
           
           return new Response(JSON.stringify({ 
             valid: true, 
             role: 'user' 
-          }), { headers: { "Content-Type": "application/json" } });
+          }), { headers: corsHeaders });
         } catch (error) {
           return new Response(JSON.stringify({ 
             valid: false, 
             error: 'invalid_request' 
-          }), { headers: { "Content-Type": "application/json" }, status: 400 });
+          }), { headers: corsHeaders, status: 400 });
         }
       }
       
-      return new Response(JSON.stringify({ ok: true }), { headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ ok: true }), { headers: corsHeaders });
     }
 
     // 其余全部交给 ASSETS 处理（自动支持 hash 文件名和 SPA fallback）

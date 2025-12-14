@@ -23,9 +23,18 @@ export async function fetchRoomsFromServer() {
 	}
 	
 	roomsFetchPromise = fetch('/api/rooms')
-		.then(res => res.json())
+		.then(res => {
+			if (!res.ok) {
+				throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+			}
+			return res.json();
+		})
 		.then(data => {
+			console.log('Rooms API response:', data);
 			cachedRooms = data.rooms || [];
+			if (cachedRooms.length === 0) {
+				console.warn('No rooms configured. Please check Worker environment variables.');
+			}
 			return cachedRooms;
 		})
 		.catch(error => {

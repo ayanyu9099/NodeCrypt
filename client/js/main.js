@@ -118,15 +118,15 @@ window.initAdminToolbar = initAdminToolbar;
 
 // 当 DOM 内容加载完成后执行初始化逻辑
 // Run initialization logic when the DOM content is fully loaded
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
 	// 移除预加载样式类，允许过渡效果
 	// Remove preload class to allow transitions
 	setTimeout(() => {
 		document.body.classList.remove('preload');
 	}, 300);
 	
-	// 初始化登录表单 / Initialize login form
-	initLoginForm();
+	// 初始化登录表单 / Initialize login form (异步获取房间列表)
+	await initLoginForm();
 
 	const loginForm = $id('login-form');               // 登录表单 / Login form
 
