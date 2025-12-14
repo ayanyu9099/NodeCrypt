@@ -885,22 +885,15 @@ export async function initLoginForm() {
 	}
 }
 
-// 设置房间选择监听器 - 根据房间是否需要密码显示/隐藏密码输入框
+// 设置房间选择监听器
+// 由于所有房间都需要密码，密码框始终显示，此函数保留用于未来扩展
 function setupRoomSelectListener(idPrefix) {
 	const roomSelect = document.getElementById('roomName' + idPrefix);
 	const passwordGroup = document.getElementById('password-group' + idPrefix);
 	
-	if (roomSelect && passwordGroup) {
-		roomSelect.addEventListener('change', function() {
-			const selectedOption = this.options[this.selectedIndex];
-			const hasPassword = selectedOption.dataset.hasPassword === 'true';
-			
-			if (hasPassword) {
-				passwordGroup.style.display = 'block';
-			} else {
-				passwordGroup.style.display = 'none';
-			}
-		});
+	// 确保密码框始终显示（所有房间都需要密码）
+	if (passwordGroup) {
+		passwordGroup.style.display = 'block';
 	}
 }
 
