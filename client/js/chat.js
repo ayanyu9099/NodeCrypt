@@ -145,7 +145,13 @@ export function addMsg(text, isHistory = false, msgType = 'text', timestamp = nu
 		// Add file-bubble class for special timestamp positioning
 		className += ' file-bubble';
 	} else {
-		contentHtml = textToHTML(text)
+		// 处理文本消息 - 支持新格式 {id, text, quote} 和旧格式（纯字符串）
+		let textContent = text;
+		if (typeof text === 'object' && text !== null) {
+			// 新格式：从对象中提取文本
+			textContent = text.text || '';
+		}
+		contentHtml = textToHTML(textContent);
 	}
 	// 消息状态（已发送/已读）
 	const statusHtml = `<span class="message-status" title="${t('chat.sent', '已发送')}">✓</span>`;
@@ -236,8 +242,15 @@ export function addOtherMsg(msg, userName = '', avatar = '', isHistory = false, 
 		}
 	} else if (msgType === 'file' || msgType === 'file_private') {
 		// Handle file messages
-		contentHtml = renderFileMessage(msg, false);	} else {
-		contentHtml = textToHTML(msg)
+		contentHtml = renderFileMessage(msg, false);
+	} else {
+		// 处理文本消息 - 支持新格式 {id, text, quote} 和旧格式（纯字符串）
+		let textContent = msg;
+		if (typeof msg === 'object' && msg !== null) {
+			// 新格式：从对象中提取文本
+			textContent = msg.text || '';
+		}
+		contentHtml = textToHTML(textContent);
 	}
 	const safeUserName = escapeHTML(userName);
 	const date = new Date(ts);
