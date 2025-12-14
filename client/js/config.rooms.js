@@ -1,30 +1,6 @@
 // Room configuration - 房间配置
-// Only rooms defined here can be joined
-// 只有在此定义的房间才能加入
-
-export const ROOMS_CONFIG = [
-	{
-		id: 'room1',
-		name: '客服1号',
-		password: '',  // 房间密码，留空表示无密码
-		adminPassword: 'admin123',  // 管理员密码
-		description: '客服咨询专用'
-	},
-	{
-		id: 'room2', 
-		name: '客服2号',
-		password: '',
-		adminPassword: 'admin123',
-		description: '客服咨询专用'
-	},
-	{
-		id: 'room3',
-		name: 'VIP专属',
-		password: 'vip888',  // 需要密码才能进入
-		adminPassword: 'admin123',
-		description: 'VIP客户专属通道'
-	}
-];
+// Rooms are fetched from server API (configured via Worker environment variables)
+// 房间配置从服务器 API 获取（通过 Worker 环境变量配置）
 
 // User roles - 用户角色
 export const USER_ROLES = {
@@ -32,42 +8,119 @@ export const USER_ROLES = {
 	USER: 'user'
 };
 
-// Get room by name
+// 缓存的房间列表
+let cachedRooms = null;
+let roomsFetchPromise = null;
+
+// 从服务器获取房间列表
+export async function fetchRoomsFromServer() {
+	if (cachedRooms) {
+		return cachedRooms;
+	}
+	
+	if (roomsFetchPromise) {
+		return roomsFetchPromise;
+	}
+	
+	roomsFetchPromise = fetch('/api/rooms')
+		.then(res => res.json())
+		.then(data => {
+			cachedRooms = data.rooms || [];
+			return cachedRooms;
+		})
+		.catch(error => {
+			console.error('Failed to fetch rooms:', error);
+			// 返回空数组，让用户知道无法获取房间
+			cachedRooms = [];
+			return cachedRooms;
+		})
+		.finally(() => {
+			roomsFetchPromise = null;
+		});
+	
+	return roomsFetchPromise;
+}
+
+// 获取已缓存的房间列表（同步）
+export function getCachedRooms() {
+	return cachedRooms || [];
+}
+
+// 清除缓存
+export function clearRoomsCache() {
+	cachedRooms = null;
+}
+
+// Get room by name (from cache)
 export function getRoomByName(name) {
-	return ROOMS_CONFIG.find(r => r.name === name);
+	const rooms = getCachedRooms();
+	return rooms.find(r => r.name === name);
 }
 
-// Get room by id
+// Get room by id (from cache)
 export function getRoomById(id) {
-	return ROOMS_CONFIG.find(r => r.id === id);
+	const rooms = getCachedRooms();
+	return rooms.find(r => r.id === id);
 }
 
-// Validate room access
+// Validate room access via server API
+export async function validateRoomAccessAsync(roomName, password, adminPassword = null) {
+	try {
+		const response = await fetch('/api/rooms/validate', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({
+				roomName,
+				password,
+				adminPassword
+			})
+		});
+		
+		const result = await response.json();
+		
+		if (result.valid) {
+			return { 
+				valid: true, 
+				error: null, 
+				role: result.role === 'admin' ? USER_ROLES.ADMIN : USER_ROLES.USER 
+			};
+		} else {
+			return { 
+				valid: false, 
+				error: result.error || 'unknown_error', 
+				role: null 
+			};
+		}
+	} catch (error) {
+		console.error('Room validation failed:', error);
+		return { 
+			valid: false, 
+			error: 'network_error', 
+			role: null 
+		};
+	}
+}
+
+// 同步验证（用于兼容旧代码，但实际会返回需要异步验证的标记）
 export function validateRoomAccess(roomName, password, adminPassword = null) {
 	const room = getRoomByName(roomName);
 	if (!room) {
 		return { valid: false, error: 'room_not_found', role: null };
 	}
 	
-	// Check if admin password is provided and correct
-	if (adminPassword && adminPassword === room.adminPassword) {
-		return { valid: true, error: null, role: USER_ROLES.ADMIN };
-	}
-	
-	// Check room password
-	if (room.password && room.password !== password) {
-		return { valid: false, error: 'wrong_password', role: null };
-	}
-	
-	return { valid: true, error: null, role: USER_ROLES.USER };
+	// 返回需要异步验证的标记
+	return { valid: 'pending', error: null, role: null, needsAsyncValidation: true };
 }
 
 // Get all available rooms (for display)
 export function getAvailableRooms() {
-	return ROOMS_CONFIG.map(r => ({
+	const rooms = getCachedRooms();
+	return rooms.map(r => ({
 		id: r.id,
 		name: r.name,
 		description: r.description,
-		hasPassword: !!r.password
+		hasPassword: r.hasPassword !== false  // 默认所有房间都需要密码
 	}));
 }

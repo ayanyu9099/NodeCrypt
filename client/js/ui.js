@@ -28,6 +28,8 @@ import {
 import {
 	getAvailableRooms,
 	validateRoomAccess,
+	validateRoomAccessAsync,
+	fetchRoomsFromServer,
 	USER_ROLES
 } from './config.rooms.js';
 import {
@@ -596,7 +598,7 @@ export function preventSpaceInput(input) {
 // Login form submit handler
 // 登录表单提交处理函数
 export function loginFormHandler(modal) {
-	return function(e) {
+	return async function(e) {
 		e.preventDefault();
 		const idPrefix = modal ? '-modal' : '';
 		
@@ -606,15 +608,39 @@ export function loginFormHandler(modal) {
 		const adminPassword = document.getElementById('adminPassword' + idPrefix)?.value.trim() || '';
 		const btn = modal ? modal.querySelector('.login-btn') : document.querySelector('#login-form .login-btn');
 		const roomInput = document.getElementById('roomName' + idPrefix);
+		const passwordInput = document.getElementById('password' + idPrefix);
 		
 		// 清除之前的错误提示
 		clearFormErrors(idPrefix);
 		
-		// 验证房间访问权限
-		const validation = validateRoomAccess(roomName, password, adminPassword);
+		// 验证用户名
+		if (!userName) {
+			showFormError(document.getElementById('userName' + idPrefix), 'username_required', idPrefix);
+			return;
+		}
+		
+		// 验证房间选择
+		if (!roomName) {
+			showFormError(roomInput, 'room_required', idPrefix);
+			return;
+		}
+		
+		// 验证密码（所有房间都需要密码）
+		if (!password && !adminPassword) {
+			showFormError(passwordInput, 'password_required', idPrefix);
+			return;
+		}
+		
+		if (btn) {
+			btn.disabled = true;
+			btn.innerText = t('ui.validating', '验证中...');
+		}
+		
+		// 异步验证房间访问权限
+		const validation = await validateRoomAccessAsync(roomName, password, adminPassword);
 		
 		if (!validation.valid) {
-			showFormError(roomInput, validation.error, idPrefix);
+			showFormError(validation.error === 'wrong_password' ? passwordInput : roomInput, validation.error, idPrefix);
 			if (btn) {
 				btn.disabled = false;
 				btn.innerText = t('ui.enter', 'ENTER');
@@ -634,7 +660,6 @@ export function loginFormHandler(modal) {
 		}
 		
 		if (btn) {
-			btn.disabled = true;
 			btn.innerText = t('ui.connecting', 'Connecting...');
 		}
 		
@@ -672,7 +697,11 @@ function showFormError(input, errorType, idPrefix) {
 	const errorMessages = {
 		'room_not_found': t('ui.room_not_found', '房间不存在'),
 		'wrong_password': t('ui.wrong_password', '密码错误'),
-		'room_already_joined': t('ui.room_already_joined', '已加入该房间')
+		'room_already_joined': t('ui.room_already_joined', '已加入该房间'),
+		'username_required': t('ui.username_required', '请输入用户名'),
+		'room_required': t('ui.room_required', '请选择房间'),
+		'password_required': t('ui.password_required', '请输入房间密码'),
+		'network_error': t('ui.network_error', '网络错误，请重试')
 	};
 	
 	const targetInput = errorType === 'wrong_password' 
@@ -698,11 +727,15 @@ export function generateLoginForm(isModal = false) {
 	const idPrefix = isModal ? '-modal' : '';
 	const rooms = getAvailableRooms();
 	
-	// 生成房间选择选项
+	// 生成房间选择选项（所有房间都需要密码）
 	const roomOptions = rooms.map(room => {
-		const lockIcon = room.hasPassword ? '🔒 ' : '';
-		return `<option value="${escapeHTML(room.name)}" data-has-password="${room.hasPassword}">${lockIcon}${escapeHTML(room.name)}</option>`;
+		return `<option value="${escapeHTML(room.name)}">🔒 ${escapeHTML(room.name)}</option>`;
 	}).join('');
+	
+	// 如果没有房间，显示加载提示
+	const roomSelectContent = rooms.length === 0 
+		? `<option value="" disabled selected>${t('ui.loading_rooms', '加载房间中...')}</option>`
+		: `<option value="" disabled selected>${t('ui.select_room', '-- 选择房间 --')}</option>${roomOptions}`;
 	
 	return `
 		<div class="input-group">
@@ -712,13 +745,12 @@ export function generateLoginForm(isModal = false) {
 		<div class="input-group">
 			<label for="roomName${idPrefix}">${t('ui.room', '房间')}</label>
 			<select id="roomName${idPrefix}" required class="room-select">
-				<option value="" disabled selected>${t('ui.select_room', '-- 选择房间 --')}</option>
-				${roomOptions}
+				${roomSelectContent}
 			</select>
 		</div>
-		<div class="input-group password-group" id="password-group${idPrefix}">
-			<label for="password${idPrefix}">${t('ui.room_password', '房间密码')} <span class="optional">${t('ui.optional', '(可选)')}</span></label>
-			<input id="password${idPrefix}" type="password" autocomplete="off" maxlength="30" placeholder="${t('ui.room_password', '房间密码')}">
+		<div class="input-group password-group" id="password-group${idPrefix}" style="display: block;">
+			<label for="password${idPrefix}">${t('ui.room_password', '房间密码')}</label>
+			<input id="password${idPrefix}" type="password" autocomplete="off" maxlength="30" placeholder="${t('ui.room_password', '房间密码')}" required>
 		</div>
 		<div class="input-group admin-group">
 			<label for="adminPassword${idPrefix}">${t('ui.admin_password', '管理员密码')} <span class="optional">${t('ui.optional', '(可选)')}</span></label>
@@ -824,20 +856,29 @@ export function autofillRoomPwd(formPrefix = '') {
 
 // 初始化登录表单
 // Initialize login form
-export function initLoginForm() {
+export async function initLoginForm() {
 	const loginFormContainer = document.getElementById('login-form');
-	if (loginFormContainer && loginFormContainer.children.length === 0) {
-		// 只有当登录表单为空时才初始化
-		// Only initialize if login form is empty
-		loginFormContainer.innerHTML = generateLoginForm(false);
-		
-		// 设置房间选择事件监听
-		setupRoomSelectListener('');
-	}
 	
 	// 为登录页面添加class，用于手机适配
 	// Add class to login page for mobile adaptation
 	document.body.classList.add('login-page');
+	
+	if (loginFormContainer && loginFormContainer.children.length === 0) {
+		// 先显示加载状态
+		loginFormContainer.innerHTML = generateLoginForm(false);
+		
+		// 异步获取房间列表
+		try {
+			await fetchRoomsFromServer();
+			// 重新生成表单以显示房间列表
+			loginFormContainer.innerHTML = generateLoginForm(false);
+		} catch (error) {
+			console.error('Failed to fetch rooms:', error);
+		}
+		
+		// 设置房间选择事件监听
+		setupRoomSelectListener('');
+	}
 }
 
 // 设置房间选择监听器 - 根据房间是否需要密码显示/隐藏密码输入框

@@ -14,7 +14,64 @@ export default {
 
     // 处理API请求
     if (url.pathname.startsWith('/api/')) {
-      // ...API 逻辑...
+      // 获取房间配置（不包含密码）
+      if (url.pathname === '/api/rooms') {
+        const rooms = getRoomsConfig(env);
+        // 返回房间列表，不包含密码
+        const publicRooms = rooms.map(r => ({
+          id: r.id,
+          name: r.name,
+          description: r.description,
+          hasPassword: true  // 所有房间都需要密码
+        }));
+        return new Response(JSON.stringify({ rooms: publicRooms }), { 
+          headers: { "Content-Type": "application/json" } 
+        });
+      }
+      
+      // 验证房间访问
+      if (url.pathname === '/api/rooms/validate' && request.method === 'POST') {
+        try {
+          const body = await request.json();
+          const { roomName, password, adminPassword } = body;
+          const rooms = getRoomsConfig(env);
+          const room = rooms.find(r => r.name === roomName);
+          
+          if (!room) {
+            return new Response(JSON.stringify({ 
+              valid: false, 
+              error: 'room_not_found' 
+            }), { headers: { "Content-Type": "application/json" } });
+          }
+          
+          // 检查管理员密码
+          if (adminPassword && adminPassword === room.adminPassword) {
+            return new Response(JSON.stringify({ 
+              valid: true, 
+              role: 'admin' 
+            }), { headers: { "Content-Type": "application/json" } });
+          }
+          
+          // 检查房间密码
+          if (room.password !== password) {
+            return new Response(JSON.stringify({ 
+              valid: false, 
+              error: 'wrong_password' 
+            }), { headers: { "Content-Type": "application/json" } });
+          }
+          
+          return new Response(JSON.stringify({ 
+            valid: true, 
+            role: 'user' 
+          }), { headers: { "Content-Type": "application/json" } });
+        } catch (error) {
+          return new Response(JSON.stringify({ 
+            valid: false, 
+            error: 'invalid_request' 
+          }), { headers: { "Content-Type": "application/json" }, status: 400 });
+        }
+      }
+      
       return new Response(JSON.stringify({ ok: true }), { headers: { "Content-Type": "application/json" } });
     }
 
@@ -22,6 +79,42 @@ export default {
     return env.ASSETS.fetch(request);
   }
 };
+
+// 从环境变量获取房间配置
+// 环境变量格式：
+// ROOM_1_NAME, ROOM_1_PASSWORD, ROOM_1_ADMIN_PASSWORD, ROOM_1_DESCRIPTION
+// ROOM_2_NAME, ROOM_2_PASSWORD, ROOM_2_ADMIN_PASSWORD, ROOM_2_DESCRIPTION
+// ...
+function getRoomsConfig(env) {
+  const rooms = [];
+  
+  // 支持最多10个房间
+  for (let i = 1; i <= 10; i++) {
+    const name = env[`ROOM_${i}_NAME`];
+    if (!name) continue;
+    
+    rooms.push({
+      id: `room${i}`,
+      name: name,
+      password: env[`ROOM_${i}_PASSWORD`] || '',
+      adminPassword: env[`ROOM_${i}_ADMIN_PASSWORD`] || '',
+      description: env[`ROOM_${i}_DESCRIPTION`] || ''
+    });
+  }
+  
+  // 如果没有配置任何房间，返回默认房间
+  if (rooms.length === 0) {
+    rooms.push({
+      id: 'default',
+      name: '默认房间',
+      password: 'default123',
+      adminPassword: 'admin123',
+      description: '默认聊天房间'
+    });
+  }
+  
+  return rooms;
+}
 
 export class ChatRoom {  constructor(state, env) {
     this.state = state;

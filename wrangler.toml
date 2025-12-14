@@ -18,3 +18,38 @@ bindings = [
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["ChatRoom"]
+
+# ============================================
+# 房间配置说明 (Room Configuration)
+# ============================================
+# 在 Cloudflare Dashboard 中配置以下环境变量和机密：
+# 
+# 环境变量 (Variables):
+#   ROOM_1_NAME = "客服1号"
+#   ROOM_1_DESCRIPTION = "客服咨询专用"
+#   ROOM_2_NAME = "客服2号"
+#   ROOM_2_DESCRIPTION = "客服咨询专用"
+#   ROOM_3_NAME = "VIP专属"
+#   ROOM_3_DESCRIPTION = "VIP客户专属通道"
+#
+# 机密 (Secrets) - 使用 wrangler secret put 命令设置:
+#   ROOM_1_PASSWORD = "your_room1_password"
+#   ROOM_1_ADMIN_PASSWORD = "your_admin_password"
+#   ROOM_2_PASSWORD = "your_room2_password"
+#   ROOM_2_ADMIN_PASSWORD = "your_admin_password"
+#   ROOM_3_PASSWORD = "your_vip_password"
+#   ROOM_3_ADMIN_PASSWORD = "your_admin_password"
+#
+# 设置机密命令示例:
+#   wrangler secret put ROOM_1_PASSWORD
+#   wrangler secret put ROOM_1_ADMIN_PASSWORD
+#
+# 支持最多10个房间 (ROOM_1 到 ROOM_10)
+# ============================================
+
+# 开发环境变量示例 (仅用于本地开发)
+# [vars]
+# ROOM_1_NAME = "测试房间1"
+# ROOM_1_PASSWORD = "test123"
+# ROOM_1_ADMIN_PASSWORD = "admin123"
+# ROOM_1_DESCRIPTION = "测试用房间"
