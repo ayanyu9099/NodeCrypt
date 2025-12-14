@@ -26,7 +26,14 @@ import {
 	isSoundEnabled,
 	setDesktopNotificationEnabled,
 	isDesktopNotificationEnabled,
-	requestNotificationPermission as requestNotifPermission
+	requestNotificationPermission as requestNotifPermission,
+	getRingtoneType,
+	getRingtoneTypes,
+	setRingtoneType,
+	setCustomRingtone,
+	clearCustomRingtone,
+	hasCustomRingtone,
+	previewRingtone
 } from './util.notification.js';
 
 // Import filter utilities
@@ -121,6 +128,9 @@ function setupSettingsPanel() {
 	const desktopNotifEnabled = isDesktopNotificationEnabled();
 	const filterEnabled = isFilterEnabled();
 	const sensitiveWords = getCustomSensitiveWords();
+	const currentRingtone = getRingtoneType();
+	const ringtoneTypes = getRingtoneTypes();
+	const hasCustom = hasCustomRingtone();
 	
 	// Create settings content HTML
 	settingsContent.innerHTML = `
@@ -143,6 +153,27 @@ function setupSettingsPanel() {
 					<input type="checkbox" id="settings-sound" ${soundEnabled ? 'checked' : ''}>
 					<span class="slider"></span>
 				</label>
+			</div>
+			<div class="settings-item">
+				<div class="settings-item-label">
+					<div>${t('settings.ringtone', '提示音')}</div>
+				</div>
+				<div class="ringtone-selector">
+					<select id="settings-ringtone" class="ringtone-select">
+						${ringtoneTypes.map(rt => `<option value="${rt.id}" ${currentRingtone === rt.id ? 'selected' : ''} ${rt.id === 'custom' && !hasCustom ? 'disabled' : ''}>${rt.name}</option>`).join('')}
+					</select>
+					<button id="preview-ringtone-btn" class="preview-btn" title="${t('settings.preview', '试听')}">🔊</button>
+				</div>
+			</div>
+			<div class="settings-item" style="flex-direction: column; align-items: stretch;">
+				<div class="custom-ringtone-upload">
+					<label class="upload-btn" for="custom-ringtone-input">
+						📁 ${t('settings.upload_ringtone', '上传自定义铃声')}
+					</label>
+					<input type="file" id="custom-ringtone-input" accept="audio/*" style="display: none;">
+					${hasCustom ? `<button id="clear-custom-ringtone" class="clear-btn">${t('settings.clear', '清除')}</button>` : ''}
+				</div>
+				<div class="ringtone-hint">${t('settings.ringtone_hint', '支持 MP3、WAV 等格式，最大 500KB')}</div>
 			</div>
 		</div>
 		
@@ -316,6 +347,60 @@ function setupSettingsPanel() {
 		saveSettings(settings);
 		applySettings(settings)
 	});
+	
+	// Ringtone selection handlers
+	// 铃声选择处理
+	const ringtoneSelect = $id('settings-ringtone');
+	const previewBtn = $id('preview-ringtone-btn');
+	const customRingtoneInput = $id('custom-ringtone-input');
+	const clearCustomBtn = $id('clear-custom-ringtone');
+	
+	if (ringtoneSelect) {
+		on(ringtoneSelect, 'change', e => {
+			const type = e.target.value;
+			if (type === 'custom' && !hasCustomRingtone()) {
+				// 如果选择自定义但没有上传，触发上传
+				customRingtoneInput?.click();
+				e.target.value = currentRingtone; // 恢复原选择
+				return;
+			}
+			setRingtoneType(type);
+		});
+	}
+	
+	if (previewBtn) {
+		on(previewBtn, 'click', () => {
+			const type = ringtoneSelect?.value || 'default';
+			previewRingtone(type);
+		});
+	}
+	
+	if (customRingtoneInput) {
+		on(customRingtoneInput, 'change', async e => {
+			const file = e.target.files?.[0];
+			if (!file) return;
+			
+			try {
+				await setCustomRingtone(file);
+				// 刷新设置面板
+				setupSettingsPanel();
+				// 自动选择自定义铃声
+				if (ringtoneSelect) {
+					ringtoneSelect.value = 'custom';
+				}
+			} catch (err) {
+				alert(t('settings.ringtone_error', '铃声上传失败: ') + err.message);
+			}
+			e.target.value = ''; // 清空以便重新选择
+		});
+	}
+	
+	if (clearCustomBtn) {
+		on(clearCustomBtn, 'click', () => {
+			clearCustomRingtone();
+			setupSettingsPanel(); // 刷新面板
+		});
+	}
 	
 	// Theme selection event handlers
 	// 主题选择事件处理
