@@ -319,8 +319,9 @@ export function handleClientMessage(idx, msg) {
 	// 处理正在输入状态
 	// Handle typing status
 	if (msgType === 'typing') {
-		const senderName = newRd.userMap[senderId]?.userName || t('ui.anonymous', 'Anonymous');
-		handleTypingStatus(senderId, senderName, msg.data?.typing);
+		const senderUser = newRd.userMap[senderId];
+		const senderName = senderUser ? (senderUser.userName || senderUser.username || senderUser.name) : null;
+		handleTypingStatus(senderId, senderName || t('ui.anonymous', 'Anonymous'), msg.data?.typing);
 		return;
 	}
 	
