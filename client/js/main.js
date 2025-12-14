@@ -14,6 +14,8 @@ import {
 // Import admin functions from util.admin.js
 import {
 	checkMuteStatus,
+	getMuteRemainingTime,
+	getMuteEndTime,
 	initAdminToolbar
 } from './util.admin.js';
 
@@ -197,7 +199,17 @@ window.addEventListener('DOMContentLoaded', () => {
 		// 检查是否被禁言
 		// Check if user is muted
 		if (checkMuteStatus()) {
-			addSystemMsg(t('admin.you_are_muted', '您已被禁言，无法发送消息'));
+			const remaining = getMuteRemainingTime();
+			const endTime = getMuteEndTime();
+			let muteMsg = t('admin.you_are_muted', '您已被禁言，无法发送消息');
+			if (remaining) {
+				muteMsg += ` (${t('admin.remaining_time', '剩余')}: ${remaining}`;
+				if (endTime) {
+					muteMsg += `, ${t('admin.unmute_at', '解除时间')}: ${endTime}`;
+				}
+				muteMsg += ')';
+			}
+			addSystemMsg(muteMsg);
 			return;
 		}
 		

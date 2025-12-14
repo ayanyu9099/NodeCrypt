@@ -74,6 +74,10 @@ const LANGUAGES = {
 			'admin.mute_duration': 'Enter mute duration (minutes, 0 for permanent):',
 			'admin.enter_announcement': 'Enter announcement content:',
 			'admin.confirm_clear': 'Are you sure you want to clear the chat history?',
+			'admin.hours': ' hours ',
+			'admin.seconds': ' seconds',
+			'admin.remaining_time': 'Remaining',
+			'admin.unmute_at': 'Unmute at',
 			
 			// Settings panel
 			'settings.title': 'Settings',
@@ -240,6 +244,10 @@ const LANGUAGES = {
 			'admin.mute_duration': '请输入禁言时长（分钟，0为永久）:',
 			'admin.enter_announcement': '请输入公告内容:',
 			'admin.confirm_clear': '确定要清空当前聊天记录吗？',
+			'admin.hours': '小时',
+			'admin.seconds': '秒',
+			'admin.remaining_time': '剩余',
+			'admin.unmute_at': '解除时间',
 			
 			// Settings panel
 			'settings.title': '设置',

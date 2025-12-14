@@ -202,12 +202,30 @@ export function showAdminMenu(user, event) {
 		</div>
 	`;
 	
-	// 定位菜单
+	// 定位菜单 - 确保不超出屏幕
 	menu.style.position = 'fixed';
-	menu.style.left = event.clientX + 'px';
-	menu.style.top = event.clientY + 'px';
-	
 	document.body.appendChild(menu);
+	
+	// 获取菜单尺寸
+	const menuRect = menu.getBoundingClientRect();
+	const menuWidth = menuRect.width || 180;
+	const menuHeight = menuRect.height || 120;
+	
+	// 计算位置，确保不超出屏幕
+	let left = event.clientX;
+	let top = event.clientY;
+	
+	// 如果超出右边界，向左偏移
+	if (left + menuWidth > window.innerWidth) {
+		left = window.innerWidth - menuWidth - 10;
+	}
+	// 如果超出下边界，向上偏移
+	if (top + menuHeight > window.innerHeight) {
+		top = window.innerHeight - menuHeight - 10;
+	}
+	
+	menu.style.left = left + 'px';
+	menu.style.top = top + 'px';
 	
 	// 点击菜单项
 	menu.addEventListener('click', (e) => {
@@ -283,10 +301,53 @@ export function initAdminToolbar() {
 	}
 }
 
+// 获取禁言剩余时间的格式化文本
+export function getMuteRemainingTime() {
+	if (!window.isMuted) return null;
+	
+	// 永久禁言
+	if (!window.mutedUntil || window.mutedUntil === 0) {
+		return t('admin.permanent', '永久');
+	}
+	
+	const remaining = window.mutedUntil - Date.now();
+	if (remaining <= 0) {
+		return null; // 已过期
+	}
+	
+	// 计算剩余时间
+	const totalSeconds = Math.ceil(remaining / 1000);
+	const hours = Math.floor(totalSeconds / 3600);
+	const minutes = Math.floor((totalSeconds % 3600) / 60);
+	const seconds = totalSeconds % 60;
+	
+	if (hours > 0) {
+		return `${hours}${t('admin.hours', '小时')}${minutes}${t('admin.minutes', '分钟')}`;
+	} else if (minutes > 0) {
+		return `${minutes}${t('admin.minutes', '分钟')}${seconds}${t('admin.seconds', '秒')}`;
+	} else {
+		return `${seconds}${t('admin.seconds', '秒')}`;
+	}
+}
+
+// 获取禁言解除时间的格式化文本
+export function getMuteEndTime() {
+	if (!window.isMuted || !window.mutedUntil || window.mutedUntil === 0) {
+		return null;
+	}
+	
+	const endDate = new Date(window.mutedUntil);
+	const hours = endDate.getHours().toString().padStart(2, '0');
+	const minutes = endDate.getMinutes().toString().padStart(2, '0');
+	const seconds = endDate.getSeconds().toString().padStart(2, '0');
+	
+	return `${hours}:${minutes}:${seconds}`;
+}
+
 // 导出禁言检查函数供发送消息时使用
 export function checkMuteStatus() {
 	if (window.isMuted) {
-		if (window.mutedUntil && Date.now() > window.mutedUntil) {
+		if (window.mutedUntil && window.mutedUntil > 0 && Date.now() > window.mutedUntil) {
 			window.isMuted = false;
 			window.mutedUntil = 0;
 			return false;
