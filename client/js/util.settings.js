@@ -33,7 +33,8 @@ import {
 	setCustomRingtone,
 	clearCustomRingtone,
 	hasCustomRingtone,
-	previewRingtone
+	previewRingtone,
+	playNotificationSound
 } from './util.notification.js';
 
 // Import filter utilities
@@ -634,30 +635,9 @@ function truncateText(text) {
 	return text.length > MAX_NOTIFY_TEXT_LEN ? text.slice(0, MAX_NOTIFY_TEXT_LEN) + '...' : text
 }
 
-// Play sound notification
-// 播放声音通知
-function playSoundNotification() {
-	try {
-		const ctx = new(window.AudioContext || window.webkitAudioContext)();
-		const osc = ctx.createOscillator();
-		const gain = ctx.createGain();
-		osc.frequency.value = 1000;
-		osc.connect(gain);
-		gain.connect(ctx.destination);
-		osc.start();
-		gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.5);
-		setTimeout(() => {
-			osc.stop();
-			ctx.close()
-		}, 600)
-	} catch (e) {
-		console.error('Sound notification failed', e)
-	}
-}
-
-// Show desktop notification
-// 显示桌面通知
-function showDesktopNotification(roomName, text, msgType, sender) {
+// Show desktop notification (local version for settings)
+// 显示桌面通知（设置模块本地版本）
+function showDesktopNotificationLocal(roomName, text, msgType, sender) {
 	if (!('Notification' in window) || Notification.permission !== 'granted') return;
 	let body;
 	const senderPrefix = sender ? `${sender}:` : '';
@@ -685,9 +665,12 @@ function showDesktopNotification(roomName, text, msgType, sender) {
 export function notifyMessage(roomName, msgType, text, sender) {
 	const settings = loadSettings();
 	if (settings.notify) {
-		showDesktopNotification(roomName, text, msgType, sender)
-	} else if (settings.sound) {
-		playSoundNotification()
+		showDesktopNotificationLocal(roomName, text, msgType, sender)
+	}
+	// 使用 util.notification.js 中的 playNotificationSound（支持自定义铃声）
+	// Use playNotificationSound from util.notification.js (supports custom ringtones)
+	if (settings.sound) {
+		playNotificationSound();
 	}
 }
 
