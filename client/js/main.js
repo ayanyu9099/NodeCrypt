@@ -309,7 +309,8 @@ window.addEventListener('DOMContentLoaded', () => {
 						// 添加到自己的聊天记录
 						if (msgWithUser.type === 'file_start') {
 							addMsg(msgWithUser, false, 'file_private');
-						}					} else {
+						}
+					} else {
 						addSystemMsg(`${t('system.private_file_failed', 'Cannot send private file to')} ${rd.privateChatTargetName}. ${t('system.user_not_connected', 'User might not be fully connected.')}`)
 					}
 				} else {
@@ -322,7 +323,47 @@ window.addEventListener('DOMContentLoaded', () => {
 						addMsg(msgWithUser, false, 'file');
 					}
 				}
-			}		}
+			}
+		},
+		// 图片直接发送回调 - 图片将直接显示在聊天界面
+		// Image send callback - images will be displayed directly in chat
+		onImageSend: (imageDataUrls) => {
+			const rd = roomsData[activeRoomIndex];
+			if (rd && rd.chat) {
+				// 构建图片消息内容
+				const messageContent = {
+					text: '',
+					images: imageDataUrls
+				};
+
+				if (rd.privateChatTargetId) {
+					// 私聊图片消息加密并发送
+					const targetClient = rd.chat.channel[rd.privateChatTargetId];
+					if (targetClient && targetClient.shared) {
+						const clientMessagePayload = {
+							a: 'm',
+							t: 'image_private',
+							d: messageContent
+						};
+						const encryptedClientMessage = rd.chat.encryptClientMessage(clientMessagePayload, targetClient.shared);
+						const serverRelayPayload = {
+							a: 'c',
+							p: encryptedClientMessage,
+							c: rd.privateChatTargetId
+						};
+						const encryptedMessageForServer = rd.chat.encryptServerMessage(serverRelayPayload, rd.chat.serverShared);
+						rd.chat.sendMessage(encryptedMessageForServer);
+						addMsg(messageContent, false, 'image_private');
+					} else {
+						addSystemMsg(`${t('system.private_message_failed', 'Cannot send private message to')} ${rd.privateChatTargetName}. ${t('system.user_not_connected', 'User might not be fully connected.')}`)
+					}
+				} else {
+					// 公共频道图片消息发送
+					rd.chat.sendChannelMessage('image', messageContent);
+					addMsg(messageContent, false, 'image');
+				}
+			}
+		}
 	});
 
 
