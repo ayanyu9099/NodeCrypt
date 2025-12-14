@@ -794,11 +794,6 @@ function setupRoomSelectListener(idPrefix) {
 			
 			if (hasPassword) {
 				passwordGroup.style.display = 'block';
-				// 添加动画效果
-				passwordGroup.style.opacity = '0';
-				setTimeout(() => {
-					passwordGroup.style.opacity = '1';
-				}, 10);
 			} else {
 				passwordGroup.style.display = 'none';
 			}
