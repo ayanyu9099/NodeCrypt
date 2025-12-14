@@ -251,6 +251,36 @@ export function addSystemMsg(text, isHistory = false, timestamp = null) {
 	chatArea.scrollTop = chatArea.scrollHeight;
 }
 
+// Add an announcement message to the chat area
+// 添加公告消息到聊天区域
+export function addAnnouncementMsg(text, fromUser = '') {
+	const chatArea = $id('chat-area');
+	if (!chatArea) return;
+	
+	const safeText = textToHTML(text);
+	const safeFrom = escapeHTML(fromUser);
+	const timestamp = Date.now();
+	const date = new Date(timestamp);
+	const time = date.getHours().toString().padStart(2, '0') + ':' + date.getMinutes().toString().padStart(2, '0');
+	
+	const div = createElement('div', {
+		class: 'bubble announcement'
+	}, `<div class="announcement-header">📢 ${t('admin.announcement', '公告')} <span class="announcement-from">${safeFrom}</span></div><span class="bubble-content">${safeText}</span><span class="bubble-meta">${time}</span>`);
+	
+	chatArea.appendChild(div);
+	chatArea.scrollTop = chatArea.scrollHeight;
+	
+	// 保存到消息历史
+	if (activeRoomIndex >= 0) {
+		roomsData[activeRoomIndex].messages.push({
+			type: 'announcement',
+			text,
+			fromUser,
+			timestamp
+		});
+	}
+}
+
 // Update the style of the chat input area
 // 更新聊天输入区域的样式
 export function updateChatInputStyle() {

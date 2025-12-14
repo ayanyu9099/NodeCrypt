@@ -10,6 +10,13 @@ import {
 	downloadFile
 } from './util.file.js';
 
+// 从 util.admin.js 中导入管理员功能
+// Import admin functions from util.admin.js
+import {
+	checkMuteStatus,
+	initAdminToolbar
+} from './util.admin.js';
+
 // 从 util.image.js 中导入图片处理功能
 // Import image processing functions from util.image.js
 import {
@@ -104,6 +111,7 @@ window.notifyMessage = notifyMessage;
 window.setupEmojiPicker = setupEmojiPicker;
 window.handleFileMessage = handleFileMessage;
 window.downloadFile = downloadFile;
+window.initAdminToolbar = initAdminToolbar;
 
 // 当 DOM 内容加载完成后执行初始化逻辑
 // Run initialization logic when the DOM content is fully loaded
@@ -186,6 +194,13 @@ window.addEventListener('DOMContentLoaded', () => {
 	// 发送消息的统一函数 - 单聊模式
 	// Unified function to send messages - Single chat mode
 	function sendMessage() {
+		// 检查是否被禁言
+		// Check if user is muted
+		if (checkMuteStatus()) {
+			addSystemMsg(t('admin.you_are_muted', '您已被禁言，无法发送消息'));
+			return;
+		}
+		
 		const text = input.innerText.trim(); // 获取输入的文本 / Get input text
 		const images = imagePasteHandler ? imagePasteHandler.getCurrentImages() : []; // 获取所有图片
 

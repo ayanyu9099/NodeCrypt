@@ -7,8 +7,12 @@ import {
 import {
 	renderChatArea,
 	addSystemMsg,
+	addAnnouncementMsg,
 	updateChatInputStyle
 } from './chat.js';
+import {
+	handleAdminAction
+} from './util.admin.js';
 import {
 	renderMainHeader,
 	renderUserList
@@ -282,6 +286,26 @@ export function handleClientMessage(idx, msg) {
 	let msgType = msg.type || 'text';
 	const isPrivateMessage = msgType.includes('_private');
 	const senderId = msg.clientId;
+	
+	// 处理管理员操作消息
+	// Handle admin action messages
+	if (msgType === 'admin_action') {
+		handleAdminAction(msg.data.action, msg.data);
+		return;
+	}
+	
+	// 处理公告消息
+	// Handle announcement messages
+	if (msgType === 'announcement') {
+		const announcementData = msg.data;
+		if (activeRoomIndex === idx) {
+			addAnnouncementMsg(announcementData.text, announcementData.from);
+		}
+		if (window.notifyMessage) {
+			window.notifyMessage(newRd.roomName, 'announcement', announcementData.text, announcementData.from);
+		}
+		return;
+	}
 
 	// Handle file messages
 	if (msgType.startsWith('file_')) {

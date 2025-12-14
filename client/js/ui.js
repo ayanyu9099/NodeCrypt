@@ -30,6 +30,10 @@ import {
 	validateRoomAccess,
 	USER_ROLES
 } from './config.rooms.js';
+import {
+	showAdminMenu,
+	isCurrentUserAdmin
+} from './util.admin.js';
 
 // Utility functions for security and error handling
 // 安全和错误处理工具函数
@@ -420,6 +424,19 @@ function createChatUserItem(user, rd) {
 		const svg = createAvatarSVG(rawName);
 		const cleanSvg = svg.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
 		avatarEl.innerHTML = cleanSvg;
+	}
+	
+	// 如果当前用户是管理员且目标不是管理员，添加管理按钮
+	if (isCurrentUserAdmin() && userRole !== 'admin') {
+		const adminBtn = document.createElement('button');
+		adminBtn.className = 'admin-action-btn';
+		adminBtn.innerHTML = '⚙️';
+		adminBtn.title = t('admin.manage_user', '管理用户');
+		adminBtn.onclick = (e) => {
+			e.stopPropagation();
+			showAdminMenu(user, e);
+		};
+		div.querySelector('.user-meta').appendChild(adminBtn);
 	}
 	
 	// 点击开始/切换私聊
