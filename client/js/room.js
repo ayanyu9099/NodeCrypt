@@ -282,15 +282,21 @@ export function handleClientSecured(idx, user) {
 	}
 	const isNew = !rd.knownUserIds.has(user.clientId);
 	if (isNew) {
-		rd.knownUserIds.add(user.clientId);		const name = user.userName || user.username || user.name || t('ui.anonymous', 'Anonymous');
-		const msg = `${name} ${t('system.joined', 'joined the conversation')}`;
-		rd.messages.push({
-			type: 'system',
-			text: msg
-		});
-		if (activeRoomIndex === idx) addSystemMsg(msg, true);
-		if (window.notifyMessage) {
-			window.notifyMessage(rd.roomName, 'system', msg)
+		rd.knownUserIds.add(user.clientId);
+		
+		// 只有管理员才显示用户加入提示
+		// Only admin can see user join notification
+		if (rd.myRole === 'admin') {
+			const name = user.userName || user.username || user.name || t('ui.anonymous', 'Anonymous');
+			const msg = `${name} ${t('system.joined', 'joined the conversation')}`;
+			rd.messages.push({
+				type: 'system',
+				text: msg
+			});
+			if (activeRoomIndex === idx) addSystemMsg(msg, true);
+			if (window.notifyMessage) {
+				window.notifyMessage(rd.roomName, 'system', msg)
+			}
 		}
 	}
 }
@@ -308,13 +314,19 @@ export function handleClientLeft(idx, clientId) {
 		}
 	}
 	const user = rd.userMap[clientId];
-	const name = user ? (user.userName || user.username || user.name || 'Anonymous') : 'Anonymous';
-	const msg = `${name} ${t('system.left', 'left the conversation')}`;
-	rd.messages.push({
-		type: 'system',
-		text: msg
-	});
-	if (activeRoomIndex === idx) addSystemMsg(msg, true);
+	
+	// 只有管理员才显示用户离开提示
+	// Only admin can see user left notification
+	if (rd.myRole === 'admin') {
+		const name = user ? (user.userName || user.username || user.name || 'Anonymous') : 'Anonymous';
+		const msg = `${name} ${t('system.left', 'left the conversation')}`;
+		rd.messages.push({
+			type: 'system',
+			text: msg
+		});
+		if (activeRoomIndex === idx) addSystemMsg(msg, true);
+	}
+	
 	rd.userList = rd.userList.filter(u => u.clientId !== clientId);
 	delete rd.userMap[clientId];
 	if (activeRoomIndex === idx) {
