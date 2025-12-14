@@ -428,53 +428,9 @@ export function togglePrivateChat(targetId, targetName) {
 	}
 	
 	// 重新渲染聊天区域以显示对应的聊天记录
-	renderPrivateChatArea(rd, targetId);
+	renderChatArea();
 	renderUserList();
 	updateChatInputStyle();
-}
-
-// 渲染私聊聊天区域
-function renderPrivateChatArea(rd, targetId) {
-	const chatArea = document.getElementById('chat-area');
-	if (!chatArea) return;
-	
-	// 清空聊天区域
-	chatArea.innerHTML = '';
-	
-	if (!targetId || !rd.privateChats[targetId]) {
-		// 没有选择用户或没有聊天记录，显示提示
-		if (!targetId) {
-			const tip = document.createElement('div');
-			tip.className = 'chat-empty-tip';
-			tip.innerHTML = `
-				<div class="empty-icon">💬</div>
-				<div class="empty-text">${t('ui.select_user_to_chat', '选择一个用户开始聊天')}</div>
-			`;
-			chatArea.appendChild(tip);
-		}
-		return;
-	}
-	
-	// 渲染该用户的聊天记录
-	const privateChat = rd.privateChats[targetId];
-	privateChat.messages.forEach(m => {
-		if (m.type === 'me') {
-			if (window.addMsg) {
-				window.addMsg(m.text, true, m.msgType || 'text', m.timestamp);
-			}
-		} else if (m.type === 'system') {
-			if (window.addSystemMsg) {
-				window.addSystemMsg(m.text, true, m.timestamp);
-			}
-		} else {
-			if (window.addOtherMsg) {
-				window.addOtherMsg(m.text, m.userName, m.avatar, true, m.msgType || 'text', m.timestamp);
-			}
-		}
-	});
-	
-	// 滚动到底部
-	chatArea.scrollTop = chatArea.scrollHeight;
 }
 
 

@@ -27,21 +27,42 @@ import {
 	t
 } from './util.i18n.js';
 
-// Render the chat area
-// 渲染聊天区域
+// Render the chat area - 单聊模式
+// 渲染聊天区域 - 单聊模式
 export function renderChatArea() {
 	const chatArea = $id('chat-area');
 	if (!chatArea) return;
 	if (activeRoomIndex < 0 || !roomsData[activeRoomIndex]) {
 		chatArea.innerHTML = '';
-		return
+		return;
 	}
 	chatArea.innerHTML = '';
-	roomsData[activeRoomIndex].messages.forEach(m => {
-		if (m.type === 'me') addMsg(m.text, true, m.msgType || 'text', m.timestamp);
-		else if (m.type === 'system') addSystemMsg(m.text, true, m.timestamp);
-		else addOtherMsg(m.text, m.userName, m.avatar, true, m.msgType || 'text', m.timestamp)
-	})
+	
+	const rd = roomsData[activeRoomIndex];
+	
+	// 单聊模式：如果没有选择聊天对象，显示提示
+	if (!rd.privateChatTargetId) {
+		const tip = document.createElement('div');
+		tip.className = 'chat-empty-tip';
+		tip.innerHTML = `
+			<div class="empty-icon">💬</div>
+			<div class="empty-text">${t('ui.select_user_to_chat', '选择一个用户开始聊天')}</div>
+		`;
+		chatArea.appendChild(tip);
+		return;
+	}
+	
+	// 渲染与当前选中用户的私聊记录
+	const privateChat = rd.privateChats[rd.privateChatTargetId];
+	if (privateChat && privateChat.messages) {
+		privateChat.messages.forEach(m => {
+			if (m.type === 'me') addMsg(m.text, true, m.msgType || 'text', m.timestamp);
+			else if (m.type === 'system') addSystemMsg(m.text, true, m.timestamp);
+			else addOtherMsg(m.text, m.userName, m.avatar, true, m.msgType || 'text', m.timestamp);
+		});
+	}
+	
+	chatArea.scrollTop = chatArea.scrollHeight;
 }
 
 // Add a message to the chat area
@@ -206,6 +227,7 @@ export function addOtherMsg(msg, userName = '', avatar = '', isHistory = false, 
 
 // Add a system message to the chat area
 // 添加系统消息到聊天区域
+// 单聊模式下，系统消息只在历史记录中显示，不实时显示
 export function addSystemMsg(text, isHistory = false, timestamp = null) {
 	if (!isHistory && activeRoomIndex >= 0) {
 		const ts = timestamp || Date.now();
@@ -213,8 +235,12 @@ export function addSystemMsg(text, isHistory = false, timestamp = null) {
 			type: 'system',
 			text,
 			timestamp: ts
-		})
+		});
+		// 单聊模式下不实时显示系统消息
+		return;
 	}
+	
+	// 只有历史记录模式才显示系统消息
 	const chatArea = $id('chat-area');
 	if (!chatArea) return;
 	const safeText = textToHTML(text);
@@ -222,7 +248,7 @@ export function addSystemMsg(text, isHistory = false, timestamp = null) {
 		class: 'bubble system'
 	}, `<span class="bubble-content">${safeText}</span>`);
 	chatArea.appendChild(div);
-	chatArea.scrollTop = chatArea.scrollHeight
+	chatArea.scrollTop = chatArea.scrollHeight;
 }
 
 // Update the style of the chat input area
