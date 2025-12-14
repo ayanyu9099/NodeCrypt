@@ -648,23 +648,23 @@ export function generateLoginForm(isModal = false) {
 	
 	return `
 		<div class="input-group">
-			<input id="userName${idPrefix}" type="text" autocomplete="username" required minlength="1" maxlength="15" placeholder=" ">
-			<label for="userName${idPrefix}" class="floating-label">${t('ui.username', 'Username')}</label>
+			<label for="userName${idPrefix}">${t('ui.username', 'Username')}</label>
+			<input id="userName${idPrefix}" type="text" autocomplete="username" required minlength="1" maxlength="15" placeholder="${t('ui.username', 'Username')}">
 		</div>
 		<div class="input-group">
+			<label for="roomName${idPrefix}">${t('ui.room', '房间')}</label>
 			<select id="roomName${idPrefix}" required class="room-select">
 				<option value="" disabled selected>${t('ui.select_room', '-- 选择房间 --')}</option>
 				${roomOptions}
 			</select>
-			<label for="roomName${idPrefix}" class="floating-label floating-label-select">${t('ui.room', '房间')}</label>
 		</div>
 		<div class="input-group password-group" id="password-group${idPrefix}" style="display: none;">
-			<input id="password${idPrefix}" type="password" autocomplete="off" minlength="1" maxlength="30" placeholder=" ">
-			<label for="password${idPrefix}" class="floating-label">${t('ui.room_password', '房间密码')}</label>
+			<label for="password${idPrefix}">${t('ui.room_password', '房间密码')}</label>
+			<input id="password${idPrefix}" type="password" autocomplete="off" minlength="1" maxlength="30" placeholder="${t('ui.room_password', '房间密码')}">
 		</div>
 		<div class="input-group admin-group">
-			<input id="adminPassword${idPrefix}" type="password" autocomplete="off" maxlength="30" placeholder=" ">
-			<label for="adminPassword${idPrefix}" class="floating-label">${t('ui.admin_password', '管理员密码')} <span class="optional">${t('ui.optional', '(可选)')}</span></label>
+			<label for="adminPassword${idPrefix}">${t('ui.admin_password', '管理员密码')} <span class="optional">${t('ui.optional', '(可选)')}</span></label>
+			<input id="adminPassword${idPrefix}" type="password" autocomplete="off" maxlength="30" placeholder="${t('ui.admin_password', '管理员密码')}">
 		</div>
 		<button type="submit" class="login-btn">${t('ui.enter', 'ENTER')}</button>
 	`;

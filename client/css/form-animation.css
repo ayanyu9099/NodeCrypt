@@ -1,55 +1,30 @@
-/* 浮动标签动画样式 */
+/* 登录表单样式 - 传统标签布局 */
 .input-group {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-bottom: 10px;
 }
 
-.input-group .floating-label {
-  position: absolute;
-  top: 50%;
-  left: 16px;
-  transform: translateY(-50%);
-  pointer-events: none;
-  font-size: 1rem;
-  color: #888;
-  transition: all 0.25s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-  z-index: 1;
-  background: transparent;
-  padding: 0 4px;
+.input-group label {
+  font-size: 0.95rem;
+  color: #555;
+  margin-bottom: 6px;
+  margin-left: 2px;
+  font-weight: 500;
 }
 
-/* 输入框获得焦点或有内容时，标签上移到输入框上方 */
-.input-group input:focus + .floating-label,
-.input-group input:not(:placeholder-shown) + .floating-label {
-  top: 0;
-  transform: translateY(-50%);
-  font-size: 12px;
-  color: #30a8f7;
-  background: #fff;
+.input-group label .optional {
+  color: #999;
+  font-size: 0.85em;
+  font-weight: 400;
 }
 
-/* Select 元素的浮动标签 - 始终显示在上方 */
-.input-group select + .floating-label,
-.input-group .floating-label-select {
-  top: 0 !important;
-  transform: translateY(-50%) !important;
-  font-size: 12px !important;
-  background: #fff !important;
-  padding: 0 4px !important;
-  color: #30a8f7 !important;
-}
-
-.input-group .floating-label span {
-  display: inline;
-  color: inherit;
-  transition: none;
-  min-width: 0;
-}
-
-/* 确保输入框可点击 */
 .input-group input,
 .input-group select {
-  position: relative;
-  z-index: 2;
+  width: 100%;
+  box-sizing: border-box;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
