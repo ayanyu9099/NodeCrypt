@@ -800,25 +800,20 @@ export function generateLoginForm(isModal = false) {
 	
 	return `
 		<div class="input-group">
-			<label for="userName${idPrefix}">${t('ui.username', 'Username')}</label>
 			<input id="userName${idPrefix}" type="text" autocomplete="username" required minlength="1" maxlength="15" placeholder="${t('ui.username', 'Username')}">
 		</div>
 		<div class="input-group">
-			<label for="roomName${idPrefix}">${t('ui.room', '房间')}</label>
 			<select id="roomName${idPrefix}" required class="room-select">
 				${roomSelectContent}
 			</select>
 		</div>
 		<div class="input-group password-group" id="password-group${idPrefix}" style="display: block;">
-			<label for="password${idPrefix}">${t('ui.room_password', '房间密码')}</label>
 			<input id="password${idPrefix}" type="password" autocomplete="off" maxlength="30" placeholder="${t('ui.room_password', '房间密码')}" required>
 		</div>
 		<div class="input-group admin-group">
-			<label for="adminPassword${idPrefix}">${t('ui.admin_password', '管理员密码')} <span class="optional">${t('ui.optional', '(可选)')}</span></label>
-			<input id="adminPassword${idPrefix}" type="password" autocomplete="off" maxlength="30" placeholder="${t('ui.admin_password', '管理员密码')}">
+			<input id="adminPassword${idPrefix}" type="password" autocomplete="off" maxlength="30" placeholder="${t('ui.admin_password_optional', '管理员密码 (可选)')}">
 		</div>
 		<div class="input-group captcha-group" id="captcha-group${idPrefix}">
-			<label for="captcha${idPrefix}">${t('ui.captcha', '验证码')}</label>
 			<div class="captcha-wrapper">
 				<input id="captcha${idPrefix}" type="text" autocomplete="off" maxlength="4" placeholder="${t('ui.enter_captcha', '输入验证码')}" required>
 				<div class="captcha-image-wrapper">
