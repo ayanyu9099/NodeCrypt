@@ -14,7 +14,7 @@ export default {
     if (upgradeHeader && upgradeHeader === 'websocket') {
       // 检查 IP 是否被禁言
       if (env.MUTE_STORE) {
-        const muteData = await env.MUTE_STORE.get(`mute:${clientIP}`);
+        const muteData = await env.MUTE_STORE.get(`mute:ip:${clientIP}`);
         if (muteData) {
           const data = JSON.parse(muteData);
           if (data.expiresAt > Date.now()) {
@@ -33,11 +33,24 @@ export default {
       
       const id = env.CHAT_ROOM.idFromName('chat-room');
       const stub = env.CHAT_ROOM.get(id);
-      // 将 IP 传递给 Durable Object
+      
+      // 将 IP 传递给 Durable Object，并存储 IP 映射
       const newRequest = new Request(request.url, {
         headers: new Headers([...request.headers, ['X-Client-IP', clientIP]]),
         method: request.method
       });
+      
+      // 存储 IP 到 KV（使用 IP 作为 key，方便后续查询）
+      // 这样管理员可以直接使用 IP 进行禁言
+      if (env.MUTE_STORE) {
+        // 存储最近连接的 IP 列表（用于调试）
+        await env.MUTE_STORE.put(
+          `recent-ip:${clientIP}`,
+          JSON.stringify({ lastSeen: Date.now() }),
+          { expirationTtl: 86400 }
+        );
+      }
+      
       return stub.fetch(newRequest);
     }
 
@@ -90,7 +103,7 @@ export default {
         }), { headers: corsHeaders });
       }
       
-      // 禁言用户（管理员操作）
+      // 禁言用户（管理员操作）- 按 IP 禁言
       if (url.pathname === '/api/mute' && request.method === 'POST') {
         try {
           const body = await request.json();
@@ -117,7 +130,7 @@ export default {
           // 存储到 KV，设置 TTL 自动过期
           if (env.MUTE_STORE) {
             await env.MUTE_STORE.put(
-              `mute:${ip}`, 
+              `mute:ip:${ip}`, 
               JSON.stringify(muteData),
               { expirationTtl: Math.max(60, duration) } // 最少 60 秒
             );
@@ -208,26 +221,67 @@ export default {
         }
       }
       
-      // 通过 clientId 获取用户 IP（管理员操作，需要通过 Durable Object）
-      // 注意：这个功能需要 Durable Object 支持，暂时使用请求者 IP 作为示例
-      if (url.pathname === '/api/mute/by-client' && request.method === 'POST') {
+      // 存储 clientId 到 IP 的映射（由 Durable Object 调用）
+      if (url.pathname === '/api/client-ip/set' && request.method === 'POST') {
         try {
           const body = await request.json();
-          const { clientId, duration, reason, mutedBy } = body;
+          const { clientId, ip } = body;
           
-          if (!clientId || !duration) {
+          if (clientId && ip && env.MUTE_STORE) {
+            // 存储映射，24小时过期
+            await env.MUTE_STORE.put(
+              `client-ip:${clientId}`,
+              ip,
+              { expirationTtl: 86400 }
+            );
+          }
+          
+          return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+        } catch (error) {
+          return new Response(JSON.stringify({ success: false }), { headers: corsHeaders });
+        }
+      }
+      
+      // 获取最近连接的 IP 列表（管理员使用）
+      if (url.pathname === '/api/recent-ips' && request.method === 'GET') {
+        try {
+          const recentIPs = [];
+          if (env.MUTE_STORE) {
+            const list = await env.MUTE_STORE.list({ prefix: 'recent-ip:' });
+            for (const key of list.keys) {
+              const ip = key.name.replace('recent-ip:', '');
+              const data = await env.MUTE_STORE.get(key.name);
+              if (data) {
+                const info = JSON.parse(data);
+                recentIPs.push({ ip, lastSeen: info.lastSeen });
+              }
+            }
+          }
+          return new Response(JSON.stringify({ 
+            success: true, 
+            ips: recentIPs.sort((a, b) => b.lastSeen - a.lastSeen)
+          }), { headers: corsHeaders });
+        } catch (error) {
+          return new Response(JSON.stringify({ success: false, ips: [] }), { headers: corsHeaders });
+        }
+      }
+      
+      // 通过目标用户 IP 禁言（管理员需要传递目标 IP）
+      if (url.pathname === '/api/mute/by-ip' && request.method === 'POST') {
+        try {
+          const body = await request.json();
+          const { targetIP, duration, reason, mutedBy } = body;
+          
+          if (!targetIP || !duration) {
             return new Response(JSON.stringify({ 
               success: false, 
               error: 'missing_parameters' 
             }), { headers: corsHeaders, status: 400 });
           }
           
-          // 使用 clientId 作为标识进行禁言
-          // 实际生产环境中，应该从 Durable Object 获取真实 IP
           const durationMs = duration * 1000;
           const muteData = {
-            ip: clientId, // 使用 clientId 作为标识
-            clientId: clientId,
+            ip: targetIP,
             mutedAt: Date.now(),
             duration: durationMs,
             expiresAt: Date.now() + durationMs,
@@ -237,7 +291,7 @@ export default {
           
           if (env.MUTE_STORE) {
             await env.MUTE_STORE.put(
-              `mute:client:${clientId}`, 
+              `mute:ip:${targetIP}`, 
               JSON.stringify(muteData),
               { expirationTtl: Math.max(60, duration) }
             );
