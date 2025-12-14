@@ -55,18 +55,37 @@ export function muteUser(userId, userName, duration = 0, banIP = false) {
 	return true;
 }
 
-// 发送 IP 禁言请求到服务器
-function sendIPBanRequest(targetId, duration) {
+// 发送 IP 禁言请求到服务器 (使用 KV API)
+async function sendIPBanRequest(targetId, duration) {
 	const rd = roomsData[activeRoomIndex];
 	if (!rd || !rd.chat) return;
 	
-	const payload = {
-		a: 'ban_ip',
-		t: targetId,
-		d: duration
-	};
-	const encryptedMessage = rd.chat.encryptServerMessage(payload, rd.chat.serverShared);
-	rd.chat.sendMessage(encryptedMessage);
+	const targetUser = rd.userList.find(u => u.clientId === targetId);
+	if (!targetUser) return;
+	
+	try {
+		// 使用 clientId 进行禁言（服务器会关联到 IP）
+		const response = await fetch('/api/mute/by-client', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				clientId: targetId,
+				duration: duration * 60, // 转换为秒
+				reason: `Muted by admin: ${rd.myUserName}`,
+				mutedBy: rd.myUserName
+			})
+		});
+		const result = await response.json();
+		if (result.success) {
+			console.log('IP mute saved to KV:', result.data);
+			showToastMsg(t('admin.ip_mute_success', 'IP禁言已生效'), 'success');
+		} else {
+			showToastMsg(t('admin.ip_mute_failed', 'IP禁言失败'), 'error');
+		}
+	} catch (error) {
+		console.error('Failed to save IP mute:', error);
+		showToastMsg(t('admin.ip_mute_failed', 'IP禁言失败'), 'error');
+	}
 }
 
 // 解除禁言

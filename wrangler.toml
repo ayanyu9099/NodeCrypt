@@ -19,6 +19,14 @@ bindings = [
 tag = "v1"
 new_sqlite_classes = ["ChatRoom"]
 
+# KV 命名空间 - 用于存储 IP 禁言数据
+# 需要先在 Cloudflare Dashboard 创建 KV namespace，或使用命令：
+# wrangler kv:namespace create "MUTE_STORE"
+# 然后将返回的 id 填入下方
+[[kv_namespaces]]
+binding = "MUTE_STORE"
+id = "a6095b84cbd04256adc2b03bb8a3353d"  # 替换为实际的 KV namespace ID
+
 # ============================================
 # 房间配置说明 (Room Configuration)
 # ============================================
