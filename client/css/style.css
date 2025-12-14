@@ -2159,25 +2159,27 @@ h2{
 /* 管理员工具栏 */
 .admin-toolbar {
 	display: flex;
-	gap: 8px;
-	padding: 8px 15px;
-	background: #fff8e1;
-	border-bottom: 1px solid #ffe082;
+	gap: 6px;
+	align-items: center;
+	margin-right: 10px;
 }
 
 .admin-btn {
-	background: #fff;
-	border: 1px solid #e0e0e0;
+	background: #fff8e1;
+	border: 1px solid #ffe082;
 	border-radius: 6px;
-	padding: 6px 12px;
+	padding: 6px 10px;
 	cursor: pointer;
 	font-size: 16px;
 	transition: all 0.2s ease;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 }
 
 .admin-btn:hover {
-	background: #f5f5f5;
-	border-color: #30a8f7;
+	background: #ffecb3;
+	border-color: #ffc107;
 }
 
 /* 管理员操作按钮（用户列表中） */

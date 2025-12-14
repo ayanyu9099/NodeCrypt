@@ -2,7 +2,7 @@
 // NodeCrypt 管理员工具
 
 import { roomsData, activeRoomIndex } from './room.js';
-import { addSystemMsg, renderChatArea } from './chat.js';
+import { addSystemMsg, renderChatArea, showToastMsg, addAnnouncementMsg } from './chat.js';
 import { t } from './util.i18n.js';
 
 // 被禁言的用户列表 { oderId: { oderId, odername, mutedAt, mutedUntil } }
@@ -113,7 +113,8 @@ export function sendAnnouncement(message) {
 	rd.chat.sendChannelMessage('announcement', announcementData);
 	
 	// 本地显示公告
-	addSystemMsg(`📢 ${t('admin.announcement', '公告')}: ${message}`);
+	addAnnouncementMsg(message, rd.myUserName);
+	showToastMsg(t('admin.announcement_sent', '公告已发送'), 'success');
 	
 	return true;
 }
@@ -131,7 +132,7 @@ export function clearChatHistory() {
 	
 	// 重新渲染聊天区域
 	renderChatArea();
-	addSystemMsg(t('admin.chat_cleared', '聊天记录已清空'));
+	showToastMsg(t('admin.chat_cleared', '聊天记录已清空'), 'success');
 	
 	return true;
 }

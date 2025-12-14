@@ -81,6 +81,7 @@ const LANGUAGES = {
 			'admin.mute_ip': 'IP Ban',
 			'admin.mute_ip_duration': 'Enter IP ban duration (minutes, 0 for permanent):\nThis will ban this user and all users with the same IP',
 			'admin.ip_banned': 'IP banned',
+			'admin.announcement_sent': 'Announcement sent',
 			
 			// Settings panel
 			'settings.title': 'Settings',
@@ -254,6 +255,7 @@ const LANGUAGES = {
 			'admin.mute_ip': 'IP禁言',
 			'admin.mute_ip_duration': '请输入IP禁言时长（分钟，0为永久）:\n此操作将禁止该用户及其所有相同IP的用户',
 			'admin.ip_banned': 'IP已禁止',
+			'admin.announcement_sent': '公告已发送',
 			
 			// Settings panel
 			'settings.title': '设置',
