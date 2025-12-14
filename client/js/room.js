@@ -247,7 +247,16 @@ export function handleClientList(idx, list, selfId) {
 	rd.initCount = (rd.initCount || 0) + 1;
 	if (rd.initCount === 2) {
 		rd.isInitialized = true;
-		rd.knownUserIds = new Set(list.map(u => u.clientId))
+		rd.knownUserIds = new Set(list.map(u => u.clientId));
+		
+		// 普通用户自动打开与管理员的聊天
+		// Auto open chat with admin for regular users
+		if (rd.myRole !== 'admin' && !rd.privateChatTargetId) {
+			const firstAdmin = rd.userList.find(u => u.role === 'admin');
+			if (firstAdmin) {
+				togglePrivateChat(firstAdmin.clientId, firstAdmin.userName || firstAdmin.username);
+			}
+		}
 	}
 }
 
@@ -297,6 +306,12 @@ export function handleClientSecured(idx, user) {
 			if (window.notifyMessage) {
 				window.notifyMessage(rd.roomName, 'system', msg)
 			}
+		}
+		
+		// 普通用户：当管理员上线时，自动打开与该管理员的聊天
+		// Regular user: auto open chat with admin when admin comes online
+		if (rd.myRole !== 'admin' && normalizedUser.role === 'admin' && !rd.privateChatTargetId) {
+			togglePrivateChat(normalizedUser.clientId, normalizedUser.userName || normalizedUser.username);
 		}
 	}
 }
