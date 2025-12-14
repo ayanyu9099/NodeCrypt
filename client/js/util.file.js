@@ -347,7 +347,8 @@ export function setupFileSend({
 	inputSelector,
 	attachBtnSelector,
 	fileInputSelector,
-	onSend
+	onSend,
+	onImageSend
 }) {
 	const attachBtn = document.querySelector(attachBtnSelector);
 	
@@ -358,16 +359,25 @@ export function setupFileSend({
 			e.preventDefault();
 			e.stopPropagation();
 			
-			showFileUploadModal(async (files) => {
-				// 传递 userName 给 onSend
-				const userName = window.roomsData && window.activeRoomIndex >= 0
-					? (window.roomsData[window.activeRoomIndex]?.myUserName || '')
-					: '';
-				await handleFilesUpload(files, (msg) => {
-					// 合并 userName 字段
-					onSend({ ...msg, userName });
-				});
-			});
+			showFileUploadModal(
+				// File send callback
+				async (files) => {
+					// 传递 userName 给 onSend
+					const userName = window.roomsData && window.activeRoomIndex >= 0
+						? (window.roomsData[window.activeRoomIndex]?.myUserName || '')
+						: '';
+					await handleFilesUpload(files, (msg) => {
+						// 合并 userName 字段
+						onSend({ ...msg, userName });
+					});
+				},
+				// Image send callback - send images directly as image messages
+				async (imageDataUrls) => {
+					if (onImageSend && imageDataUrls.length > 0) {
+						await onImageSend(imageDataUrls);
+					}
+				}
+			);
 		});
 	}
 }
