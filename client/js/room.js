@@ -122,7 +122,7 @@ export function joinRoom(userName, roomName, password, modal = null, onResult, u
 	let closed = false;
 	const callbacks = {
 		onServerClosed: () => {
-			setStatus('Node connection closed');
+			console.log('Node connection closed');
 			if (onResult && !closed) {
 				closed = true;
 				onResult(false)

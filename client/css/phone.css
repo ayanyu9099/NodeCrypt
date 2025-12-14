@@ -235,3 +235,60 @@
 	/* Prevent touch callouts */
 	-webkit-touch-callout: none;
 }
+
+/* iPad 和平板设备适配 */
+@media (min-width: 769px) and (max-width: 1024px) {
+	.chat-input-area {
+		display: flex !important;
+		position: relative;
+		padding: 10px 20px 15px 20px;
+		z-index: 100;
+	}
+	
+	.chat-input-wrapper {
+		width: 90%;
+	}
+	
+	.main {
+		display: flex;
+		flex-direction: column;
+	}
+	
+	.chat-area {
+		flex: 1;
+		overflow-y: auto;
+	}
+}
+
+/* 修复 Safari 移动端输入框点击问题 */
+@supports (-webkit-touch-callout: none) {
+	.input-group input,
+	.input-group select,
+	.login-btn {
+		-webkit-appearance: none;
+		touch-action: manipulation;
+		cursor: pointer;
+	}
+	
+	.flip-card-front,
+	.flip-card-back {
+		-webkit-overflow-scrolling: touch;
+	}
+	
+	#login-form {
+		position: relative;
+		z-index: 10;
+	}
+	
+	#login-form .input-group {
+		position: relative;
+		z-index: 11;
+	}
+	
+	#login-form input,
+	#login-form select {
+		position: relative;
+		z-index: 12;
+		font-size: 16px; /* 防止 iOS 自动缩放 */
+	}
+}

@@ -11,6 +11,7 @@
   font-size: 1.1rem;
   color: #888;
   transition: 0.25s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  z-index: 1;
 }
 
 .input-group input:focus + .floating-label,
@@ -19,9 +20,27 @@
   transform: translateY(-40px);
 }
 
+/* Select 元素的浮动标签 */
+.input-group select + .floating-label {
+  top: -10px;
+  font-size: 12px;
+  background: #fff;
+  padding: 0 4px;
+  color: #30a8f7;
+}
+
 .input-group .floating-label span {
   display: inline;
   color: inherit;
   transition: none;
   min-width: 0;
+}
+
+/* 确保输入框可点击 - 修复 Safari 移动端问题 */
+.input-group input,
+.input-group select {
+  position: relative;
+  z-index: 2;
+  -webkit-appearance: none;
+  touch-action: manipulation;
 }
