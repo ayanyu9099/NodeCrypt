@@ -3055,12 +3055,19 @@ h2{
 /* 移动端适配 */
 @media (max-width: 768px) {
 	.connection-indicator {
-		bottom: auto;
-		top: 10px;
-		left: 50%;
-		transform: translateX(-50%);
-		padding: 6px 10px;
-		font-size: 11px;
+		bottom: 80px;
+		top: auto;
+		left: 10px;
+		transform: none;
+		padding: 4px 8px;
+		font-size: 10px;
+		opacity: 0.8;
+	}
+	
+	.connection-indicator.connected {
+		/* 连接正常时更小更透明 */
+		padding: 3px 6px;
+		opacity: 0.6;
 	}
 	
 	.connection-dot {
