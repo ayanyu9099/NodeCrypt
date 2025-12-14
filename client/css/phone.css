@@ -177,34 +177,34 @@
 }
 
 .bubble.other.private-message {
-	background-color: #9370db !important;
-	color: white !important;
+	background-color: #fff !important;
+	color: #000 !important;
 }
 
 .bubble.other.private-message .bubble-other-name {
-	color: #f0e8ff !important;
+	color: #666 !important;
 }
 
 .bubble.other.private-message .bubble-meta {
-	color: #e0d0ff !important;
+	color: #999 !important;
 }
 
 .bubble.other.private-message .bubble-content {
-	color: white !important;
+	color: #000 !important;
 	background-color: transparent !important;
 }
 
 .bubble.me.private-message {
-	background-color: #9370db !important;
-	color: white !important;
+	background-color: #95ec69 !important;
+	color: #000 !important;
 }
 
 .bubble.me.private-message .bubble-meta {
-	color: #e0d0ff !important;
+	color: #555 !important;
 }
 
 .bubble.me.private-message .bubble-content {
-	color: white !important;
+	color: #000 !important;
 	background-color: transparent !important;
 }
 

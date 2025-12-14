@@ -156,11 +156,26 @@ export function addMsg(text, isHistory = false, msgType = 'text', timestamp = nu
 	// 消息状态（已发送/已读）
 	const statusHtml = `<span class="message-status" title="${t('chat.sent', '已发送')}">✓</span>`;
 	
-	const divAttrs = { class: className };
-	if (msgId) divAttrs['data-message-id'] = msgId;
+	// 获取自己的用户名
+	const rd = roomsData[activeRoomIndex];
+	const myUserName = rd ? rd.myUserName : t('chat.me', '我');
+	const safeMyUserName = escapeHTML(myUserName);
 	
-	const div = createElement('div', divAttrs, `${quoteHtml}<span class="bubble-content">${contentHtml}</span><span class="bubble-meta">${statusHtml} ${time}</span>`);
-	chatArea.appendChild(div);
+	// 创建带头像和名称的气泡（与对方消息结构一致，但靠右显示）
+	const bubbleWrap = createElement('div', { class: 'bubble-me-wrap' });
+	if (msgId) bubbleWrap.setAttribute('data-message-id', msgId);
+	
+	bubbleWrap.innerHTML = `<div class="bubble-me-main"><div class="${className}">${quoteHtml}<div class="bubble-me-name">${safeMyUserName}</div><span class="bubble-content">${contentHtml}</span><span class="bubble-meta">${statusHtml} ${time}</span></div></div><span class="avatar"></span>`;
+	
+	// 设置头像
+	const avatarEl = bubbleWrap.querySelector('.avatar');
+	if (avatarEl) {
+		const svg = createAvatarSVG(myUserName);
+		const cleanSvg = svg.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+		avatarEl.innerHTML = cleanSvg;
+	}
+	
+	chatArea.appendChild(bubbleWrap);
 	chatArea.scrollTop = chatArea.scrollHeight
 }
 

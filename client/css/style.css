@@ -678,6 +678,43 @@ flex-direction: column;
 	margin-left: -5px;
 }
 
+/* 自己消息的包装样式 */
+.bubble-me-wrap {
+	display: flex;
+	align-items: flex-end;
+	justify-content: flex-end;
+	position: relative;
+	z-index: 2;
+	margin-bottom: .375rem;
+}
+
+.bubble-me-main {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+}
+
+.bubble-me-wrap .avatar {
+	width: 40px;
+	height: 40px;
+	border-radius: 50%;
+	margin-left: 8px;
+	flex-shrink: 0;
+}
+
+.bubble-me-name {
+	font-size: 13px;
+	color: #2e7d32;
+	font-weight: 500;
+	margin-right: -5px;
+	text-align: right;
+}
+
+.bubble-me-wrap .bubble.me {
+	margin-left: 0;
+	margin-right: 0;
+}
+
 :root {
 	--chat-input-border-radius: 1rem;
 	--chat-input-size: 3.25rem;
