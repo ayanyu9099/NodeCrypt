@@ -226,24 +226,45 @@ export default {
         }
       }
       
-      // 存储 clientId 到 IP 的映射（由 Durable Object 调用）
+      // 存储 clientId 到 IP 的映射（客户端在加入房间后调用）
       if (url.pathname === '/api/client-ip/set' && request.method === 'POST') {
         try {
           const body = await request.json();
-          const { clientId, ip } = body;
+          const { clientId } = body;
           
-          if (clientId && ip && env.MUTE_STORE) {
-            // 存储映射，24小时过期
+          if (clientId && env.MUTE_STORE) {
+            // 使用请求的真实 IP 存储映射，24小时过期
             await env.MUTE_STORE.put(
               `client-ip:${clientId}`,
-              ip,
+              clientIP,
               { expirationTtl: 86400 }
             );
           }
           
-          return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+          return new Response(JSON.stringify({ success: true, ip: clientIP }), { headers: corsHeaders });
         } catch (error) {
           return new Response(JSON.stringify({ success: false }), { headers: corsHeaders });
+        }
+      }
+      
+      // 查询 clientId 对应的 IP（管理员使用）
+      if (url.pathname === '/api/client-ip/get' && request.method === 'POST') {
+        try {
+          const body = await request.json();
+          const { clientId } = body;
+          
+          if (!clientId) {
+            return new Response(JSON.stringify({ ip: null }), { headers: corsHeaders });
+          }
+          
+          let ip = null;
+          if (env.MUTE_STORE) {
+            ip = await env.MUTE_STORE.get(`client-ip:${clientId}`);
+          }
+          
+          return new Response(JSON.stringify({ ip }), { headers: corsHeaders });
+        } catch (error) {
+          return new Response(JSON.stringify({ ip: null }), { headers: corsHeaders });
         }
       }
       

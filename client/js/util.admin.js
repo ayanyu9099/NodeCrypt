@@ -63,25 +63,26 @@ async function sendIPBanRequest(targetId, duration) {
 	const targetUser = rd.userList.find(u => u.clientId === targetId);
 	if (!targetUser) return;
 	
-	// 让管理员输入目标 IP（临时方案）
-	// 后续可以优化为自动获取
-	const targetIP = prompt(
-		t('admin.enter_target_ip', '请输入要禁言的IP地址:\n(可在浏览器控制台或服务器日志中查看用户IP)'),
-		''
-	);
-	
-	if (!targetIP || !targetIP.trim()) {
-		showToastMsg(t('admin.ip_required', '请输入有效的IP地址'), 'error');
-		return;
-	}
-	
 	try {
+		// 先查询目标用户的 IP
+		const ipResponse = await fetch('/api/client-ip/get', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ clientId: targetId })
+		});
+		const ipResult = await ipResponse.json();
+		
+		if (!ipResult.ip) {
+			showToastMsg(t('admin.ip_not_found', '无法获取用户IP，请稍后重试'), 'error');
+			return;
+		}
+		
 		// 使用 IP 进行禁言
 		const response = await fetch('/api/mute/by-ip', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
-				targetIP: targetIP.trim(),
+				targetIP: ipResult.ip,
 				duration: duration * 60, // 转换为秒
 				reason: `Muted by admin: ${rd.myUserName}`,
 				mutedBy: rd.myUserName
@@ -90,7 +91,7 @@ async function sendIPBanRequest(targetId, duration) {
 		const result = await response.json();
 		if (result.success) {
 			console.log('IP mute saved to KV:', result.data);
-			showToastMsg(t('admin.ip_mute_success', 'IP禁言已生效'), 'success');
+			showToastMsg(t('admin.ip_mute_success', 'IP禁言已生效') + ` (${ipResult.ip})`, 'success');
 		} else {
 			showToastMsg(t('admin.ip_mute_failed', 'IP禁言失败') + ': ' + (result.error || ''), 'error');
 		}

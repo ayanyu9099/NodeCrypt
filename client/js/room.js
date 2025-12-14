@@ -199,6 +199,17 @@ export function handleClientList(idx, list, selfId) {
 		rd.userMap[u.clientId] = u
 	});
 	rd.myId = selfId;
+	
+	// 存储 clientId 到 IP 的映射（用于 IP 禁言功能）
+	if (selfId && !rd.ipMappingStored) {
+		rd.ipMappingStored = true;
+		fetch('/api/client-ip/set', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ clientId: selfId })
+		}).catch(e => console.error('Failed to store client IP mapping:', e));
+	}
+	
 	if (activeRoomIndex === idx) {
 		renderUserList(false);
 		renderMainHeader()
