@@ -863,7 +863,7 @@ export async function initLoginForm() {
 	// Add class to login page for mobile adaptation
 	document.body.classList.add('login-page');
 	
-	if (loginFormContainer && loginFormContainer.children.length === 0) {
+	if (loginFormContainer) {
 		// 先显示加载状态
 		loginFormContainer.innerHTML = generateLoginForm(false);
 		
@@ -876,7 +876,7 @@ export async function initLoginForm() {
 			console.log('Form regenerated with rooms');
 		} catch (error) {
 			console.error('Failed to fetch rooms:', error);
-			// 即使失败也重新生成表单（会使用后备房间）
+			// 即使失败也重新生成表单
 			loginFormContainer.innerHTML = generateLoginForm(false);
 		}
 		
