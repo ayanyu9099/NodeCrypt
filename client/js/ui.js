@@ -44,8 +44,8 @@ import {
 // Utility functions for security and error handling
 // 安全和错误处理工具函数
 
-// Simple encryption/decryption using base64 and character shifting
-// 使用base64和字符偏移的简单加密/解密
+// Simple encryption/decryption using base64 and character shifting (legacy)
+// 使用base64和字符偏移的简单加密/解密（旧版）
 function simpleEncrypt(text) {
 	if (!text) return '';
 	// Convert to base64 and shift characters
@@ -67,6 +67,84 @@ function simpleDecrypt(encrypted) {
 		return decodeURIComponent(escape(atob(shifted)));
 	} catch (error) {
 		console.warn('Failed to decrypt data:', error);
+		return '';
+	}
+}
+
+// Secure encryption for share links using XOR + shuffle + base64
+// 安全加密分享链接，使用 XOR + 混淆 + base64
+const SHARE_KEY = 'N0d3CrYpT2024!@#'; // 混淆密钥
+
+function secureEncrypt(text) {
+	if (!text) return '';
+	try {
+		// 1. UTF-8 编码
+		const utf8 = unescape(encodeURIComponent(text));
+		
+		// 2. XOR 加密
+		let xored = '';
+		for (let i = 0; i < utf8.length; i++) {
+			const charCode = utf8.charCodeAt(i) ^ SHARE_KEY.charCodeAt(i % SHARE_KEY.length);
+			xored += String.fromCharCode(charCode);
+		}
+		
+		// 3. 添加随机前缀（4字节）增加随机性
+		const randomPrefix = Array.from({ length: 4 }, () => 
+			String.fromCharCode(Math.floor(Math.random() * 94) + 33)
+		).join('');
+		
+		// 4. 混淆：反转 + 交错
+		const withPrefix = randomPrefix + xored;
+		const reversed = withPrefix.split('').reverse().join('');
+		let shuffled = '';
+		for (let i = 0; i < reversed.length; i++) {
+			const charCode = reversed.charCodeAt(i);
+			// 交错偏移
+			shuffled += String.fromCharCode((charCode + i * 7) % 256);
+		}
+		
+		// 5. Base64 编码（URL 安全）
+		const base64 = btoa(shuffled);
+		return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+	} catch (error) {
+		console.warn('Secure encrypt failed:', error);
+		return simpleEncrypt(text); // 降级到旧方法
+	}
+}
+
+function secureDecrypt(encrypted) {
+	if (!encrypted) return '';
+	try {
+		// 1. 还原 Base64（URL 安全格式）
+		let base64 = encrypted.replace(/-/g, '+').replace(/_/g, '/');
+		// 补齐 padding
+		while (base64.length % 4) base64 += '=';
+		const shuffled = atob(base64);
+		
+		// 2. 反混淆：逆交错
+		let reversed = '';
+		for (let i = 0; i < shuffled.length; i++) {
+			const charCode = shuffled.charCodeAt(i);
+			reversed += String.fromCharCode((charCode - i * 7 + 256 * 100) % 256);
+		}
+		
+		// 3. 反转
+		const withPrefix = reversed.split('').reverse().join('');
+		
+		// 4. 移除随机前缀（4字节）
+		const xored = withPrefix.slice(4);
+		
+		// 5. XOR 解密
+		let utf8 = '';
+		for (let i = 0; i < xored.length; i++) {
+			const charCode = xored.charCodeAt(i) ^ SHARE_KEY.charCodeAt(i % SHARE_KEY.length);
+			utf8 += String.fromCharCode(charCode);
+		}
+		
+		// 6. UTF-8 解码
+		return decodeURIComponent(escape(utf8));
+	} catch (error) {
+		console.warn('Secure decrypt failed:', error);
 		return '';
 	}
 }
@@ -149,15 +227,19 @@ function handleShareAction() {
 	const roomName = rd.roomName.trim();
 	const password = rd.password || '';
 	
-	// Encrypt room name and password
-	const encryptedRoom = simpleEncrypt(roomName);
-	const encryptedPwd = password ? simpleEncrypt(password) : '';
+	// 使用安全加密并放入 hash 片段（不会发送到服务器）
+	// Use secure encryption and put in hash fragment (won't be sent to server)
+	const encryptedRoom = secureEncrypt(roomName);
+	const encryptedPwd = password ? secureEncrypt(password) : '';
 	
-	// Create share URL with encrypted data
-	let url = `${location.origin}${location.pathname}?r=${encodeURIComponent(encryptedRoom)}`;
+	// 创建分享 URL，使用 # 而不是 ?（更安全）
+	// Create share URL using # instead of ? (more secure)
+	let hashData = `r=${encryptedRoom}`;
 	if (encryptedPwd) {
-		url += `&p=${encodeURIComponent(encryptedPwd)}`;
+		hashData += `&p=${encryptedPwd}`;
 	}
+	
+	const url = `${location.origin}${location.pathname}#${hashData}`;
 	
 	copyToClipboard(url, t('action.share_copied', 'Share link copied!'), t('action.copy_url_failed', 'Copy failed, url:'));
 }
@@ -882,33 +964,55 @@ export function setupTabs() {
 // Autofill room and password from URL
 // 从 URL 自动填充房间和密码
 export function autofillRoomPwd(formPrefix = '') {
-	const params = new URLSearchParams(window.location.search);
-	
-	// Check for new encrypted format first
-	const encryptedRoom = params.get('r');
-	const encryptedPwd = params.get('p');
-	
-	// Check for old plaintext format (for backward compatibility)
-	const plaintextRoom = params.get('node');
-	const plaintextPwd = params.get('pwd');
-	
 	let roomValue = '';
 	let pwdValue = '';
 	let isPlaintext = false;
+	let isLegacyEncrypted = false;
 	
-	if (encryptedRoom) {
-		// New encrypted format
-		roomValue = simpleDecrypt(decodeURIComponent(encryptedRoom));
-		if (encryptedPwd) {
-			pwdValue = simpleDecrypt(decodeURIComponent(encryptedPwd));
+	// 1. 首先检查 hash 片段（新的安全格式）
+	// First check hash fragment (new secure format)
+	const hash = window.location.hash.slice(1); // 移除 #
+	if (hash) {
+		const hashParams = new URLSearchParams(hash);
+		const secureRoom = hashParams.get('r');
+		const securePwd = hashParams.get('p');
+		
+		if (secureRoom) {
+			roomValue = secureDecrypt(secureRoom);
+			if (securePwd) {
+				pwdValue = secureDecrypt(securePwd);
+			}
 		}
-	} else if (plaintextRoom) {
-		// Old plaintext format - show security warning
-		roomValue = decodeURIComponent(plaintextRoom);
-		if (plaintextPwd) {
-			pwdValue = decodeURIComponent(plaintextPwd);
+	}
+	
+	// 2. 如果 hash 没有数据，检查 query string（旧格式兼容）
+	// If no hash data, check query string (legacy format compatibility)
+	if (!roomValue) {
+		const params = new URLSearchParams(window.location.search);
+		
+		// Check for old encrypted format (r=, p=)
+		const encryptedRoom = params.get('r');
+		const encryptedPwd = params.get('p');
+		
+		// Check for old plaintext format (node=, pwd=)
+		const plaintextRoom = params.get('node');
+		const plaintextPwd = params.get('pwd');
+		
+		if (encryptedRoom) {
+			// Old encrypted format (simpleEncrypt)
+			roomValue = simpleDecrypt(decodeURIComponent(encryptedRoom));
+			if (encryptedPwd) {
+				pwdValue = simpleDecrypt(decodeURIComponent(encryptedPwd));
+			}
+			isLegacyEncrypted = true;
+		} else if (plaintextRoom) {
+			// Old plaintext format - show security warning
+			roomValue = decodeURIComponent(plaintextRoom);
+			if (plaintextPwd) {
+				pwdValue = decodeURIComponent(plaintextPwd);
+			}
+			isPlaintext = true;
 		}
-		isPlaintext = true;
 	}
 	
 	// Fill in the form fields
@@ -920,7 +1024,8 @@ export function autofillRoomPwd(formPrefix = '') {
 				if (roomSelect.options[i].value === roomValue) {
 					roomSelect.selectedIndex = i;
 					roomSelect.disabled = true;
-					roomSelect.style.background = isPlaintext ? '#fff9e6' : '#f5f5f5';
+					// 旧格式用黄色背景提示
+					roomSelect.style.background = (isPlaintext || isLegacyEncrypted) ? '#fff9e6' : '#f5f5f5';
 					
 					// 触发 change 事件以显示密码框（如果需要）
 					roomSelect.dispatchEvent(new Event('change'));
@@ -935,12 +1040,13 @@ export function autofillRoomPwd(formPrefix = '') {
 		if (pwdInput && pwdValue) {
 			pwdInput.value = pwdValue;
 			pwdInput.readOnly = true;
-			pwdInput.style.background = isPlaintext ? '#fff9e6' : '#f5f5f5';
+			pwdInput.style.background = (isPlaintext || isLegacyEncrypted) ? '#fff9e6' : '#f5f5f5';
 			if (pwdGroup) pwdGroup.style.display = 'block';
 		}
 	}
 	
-	// Clear URL parameters for security
+	// Clear URL parameters for security (both hash and query string)
+	// 清除 URL 参数以保护安全（hash 和 query string 都清除）
 	if (roomValue || pwdValue) {
 		window.history.replaceState({}, '', location.pathname);
 	}
