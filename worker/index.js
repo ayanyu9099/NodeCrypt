@@ -12,42 +12,47 @@ export default {
     // 处理WebSocket请求
     const upgradeHeader = request.headers.get('Upgrade');
     if (upgradeHeader && upgradeHeader === 'websocket') {
-      // 检查 IP 是否被禁言
-      if (env.MUTE_STORE) {
-        const muteData = await env.MUTE_STORE.get(`mute:ip:${clientIP}`);
-        if (muteData) {
-          const data = JSON.parse(muteData);
-          if (data.expiresAt > Date.now()) {
-            // IP 被禁言，拒绝 WebSocket 连接
-            return new Response(JSON.stringify({
-              error: 'ip_muted',
-              expiresAt: data.expiresAt,
-              reason: data.reason
-            }), { 
-              status: 403,
-              headers: { 'Content-Type': 'application/json' }
-            });
+      // 检查 IP 是否被禁言（添加错误处理，避免 KV 错误影响连接）
+      try {
+        if (env.MUTE_STORE) {
+          const muteData = await env.MUTE_STORE.get(`mute:ip:${clientIP}`);
+          if (muteData) {
+            const data = JSON.parse(muteData);
+            if (data.expiresAt > Date.now()) {
+              // IP 被禁言，拒绝 WebSocket 连接
+              return new Response(JSON.stringify({
+                error: 'ip_muted',
+                expiresAt: data.expiresAt,
+                reason: data.reason
+              }), { 
+                status: 403,
+                headers: { 'Content-Type': 'application/json' }
+              });
+            }
           }
         }
+      } catch (e) {
+        console.error('KV mute check error:', e);
+        // 继续处理，不阻止连接
       }
       
       const id = env.CHAT_ROOM.idFromName('chat-room');
       const stub = env.CHAT_ROOM.get(id);
       
-      // 将 IP 传递给 Durable Object，并存储 IP 映射
+      // 将 IP 传递给 Durable Object
       const newRequest = new Request(request.url, {
         headers: new Headers([...request.headers, ['X-Client-IP', clientIP]]),
         method: request.method
       });
       
-      // 存储 IP 到 KV（使用 IP 作为 key，方便后续查询）
-      // 这样管理员可以直接使用 IP 进行禁言
+      // 异步存储 IP 到 KV（不阻塞 WebSocket 连接）
       if (env.MUTE_STORE) {
-        // 存储最近连接的 IP 列表（用于调试）
-        await env.MUTE_STORE.put(
-          `recent-ip:${clientIP}`,
-          JSON.stringify({ lastSeen: Date.now() }),
-          { expirationTtl: 86400 }
+        ctx.waitUntil(
+          env.MUTE_STORE.put(
+            `recent-ip:${clientIP}`,
+            JSON.stringify({ lastSeen: Date.now() }),
+            { expirationTtl: 86400 }
+          ).catch(e => console.error('KV put error:', e))
         );
       }
       
