@@ -869,11 +869,15 @@ export async function initLoginForm() {
 		
 		// 异步获取房间列表
 		try {
-			await fetchRoomsFromServer();
+			const rooms = await fetchRoomsFromServer();
+			console.log('Fetched rooms:', rooms);
 			// 重新生成表单以显示房间列表
 			loginFormContainer.innerHTML = generateLoginForm(false);
+			console.log('Form regenerated with rooms');
 		} catch (error) {
 			console.error('Failed to fetch rooms:', error);
+			// 即使失败也重新生成表单（会使用后备房间）
+			loginFormContainer.innerHTML = generateLoginForm(false);
 		}
 		
 		// 设置房间选择事件监听

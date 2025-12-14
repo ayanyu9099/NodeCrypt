@@ -36,12 +36,17 @@ export default {
           description: r.description,
           hasPassword: true  // 所有房间都需要密码
         }));
+        
+        // 调试信息：检查环境变量是否存在
+        const debugInfo = {
+          roomCount: rooms.length,
+          room1Name: env.ROOM_1_NAME ? 'set' : 'not set',
+          room2Name: env.ROOM_2_NAME ? 'set' : 'not set'
+        };
+        
         return new Response(JSON.stringify({ 
           rooms: publicRooms,
-          debug: {
-            roomCount: rooms.length,
-            envKeys: Object.keys(env).filter(k => k.startsWith('ROOM_'))
-          }
+          debug: debugInfo
         }), { 
           headers: corsHeaders 
         });
@@ -108,26 +113,18 @@ function getRoomsConfig(env) {
   
   // 支持最多10个房间
   for (let i = 1; i <= 10; i++) {
-    const name = env[`ROOM_${i}_NAME`];
-    if (!name) continue;
+    const nameKey = `ROOM_${i}_NAME`;
+    const name = env[nameKey];
+    
+    // 跳过未配置的房间
+    if (!name || name === undefined || name === '') continue;
     
     rooms.push({
       id: `room${i}`,
-      name: name,
-      password: env[`ROOM_${i}_PASSWORD`] || '',
-      adminPassword: env[`ROOM_${i}_ADMIN_PASSWORD`] || '',
-      description: env[`ROOM_${i}_DESCRIPTION`] || ''
-    });
-  }
-  
-  // 如果没有配置任何房间，返回默认房间
-  if (rooms.length === 0) {
-    rooms.push({
-      id: 'default',
-      name: '默认房间',
-      password: 'default123',
-      adminPassword: 'admin123',
-      description: '默认聊天房间'
+      name: String(name),
+      password: env[`ROOM_${i}_PASSWORD`] ? String(env[`ROOM_${i}_PASSWORD`]) : '',
+      adminPassword: env[`ROOM_${i}_ADMIN_PASSWORD`] ? String(env[`ROOM_${i}_ADMIN_PASSWORD`]) : '',
+      description: env[`ROOM_${i}_DESCRIPTION`] ? String(env[`ROOM_${i}_DESCRIPTION`]) : ''
     });
   }
   

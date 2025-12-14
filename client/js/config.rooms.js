@@ -32,14 +32,10 @@ export async function fetchRoomsFromServer() {
 		.then(data => {
 			console.log('Rooms API response:', data);
 			cachedRooms = data.rooms || [];
-			if (cachedRooms.length === 0) {
-				console.warn('No rooms configured. Please check Worker environment variables.');
-			}
 			return cachedRooms;
 		})
 		.catch(error => {
 			console.error('Failed to fetch rooms:', error);
-			// 返回空数组，让用户知道无法获取房间
 			cachedRooms = [];
 			return cachedRooms;
 		})
