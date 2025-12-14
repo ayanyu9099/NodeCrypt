@@ -592,8 +592,8 @@ flex-direction: column;
 }
 
 .bubble.me {
-	background: #e3fee0;
-	color: #222;
+	background: #95ec69;
+	color: #000;
 	margin-left: auto;
 	border-bottom-right-radius: 0px;
 	padding: 10px 39px 7px 10px;
@@ -601,6 +601,7 @@ flex-direction: column;
 
 .bubble.other {
 	background: #fff;
+	color: #000;
 	max-width: 100%;
 	color: #222;
 	border-bottom-left-radius: 0px;
@@ -2698,54 +2699,4 @@ h2{
 
 .captcha-refresh-btn:active {
 	transform: rotate(360deg);
-}
-
-/* 图片操作菜单样式（移动端长按） */
-/* Image action menu styles (mobile long press) */
-.image-action-menu {
-	position: fixed;
-	background: #fff;
-	border-radius: 12px;
-	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-	z-index: 10000;
-	min-width: 160px;
-	overflow: hidden;
-	animation: menuFadeIn 0.15s ease;
-}
-
-@keyframes menuFadeIn {
-	from {
-		opacity: 0;
-		transform: scale(0.95);
-	}
-	to {
-		opacity: 1;
-		transform: scale(1);
-	}
-}
-
-.image-action-menu-item {
-	padding: 14px 18px;
-	font-size: 15px;
-	color: #333;
-	cursor: pointer;
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	transition: background-color 0.15s ease;
-	border-bottom: 1px solid #f0f0f0;
-}
-
-.image-action-menu-item:last-child {
-	border-bottom: none;
-}
-
-.image-action-menu-item:hover,
-.image-action-menu-item:active {
-	background: #f5f5f5;
-}
-
-.image-action-menu-item.hint {
-	color: #888;
-	font-size: 13px;
 }
