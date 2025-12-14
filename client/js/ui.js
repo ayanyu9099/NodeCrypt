@@ -344,12 +344,12 @@ export function renderUserList(updateHeader = false) {
 	const rd = roomsData[activeRoomIndex];
 	if (!rd) return;
 	
-	const me = rd.userList.find(u => u.clientId === rd.myId);
 	const myRole = rd.myRole || 'user';
 	
-	// 根据角色过滤用户列表
-	// 管理员可以看到所有用户，普通用户只能看到管理员
-	let others = rd.userList.filter(u => u.clientId !== rd.myId);
+	// 在 P2P 架构中，userList 只包含其他客户端，不包含自己
+	// In P2P architecture, userList only contains other clients, not self
+	// 所以直接使用 userList 作为 others
+	let others = [...rd.userList];
 	
 	if (myRole !== 'admin') {
 		// 普通用户只能看到管理员
@@ -388,13 +388,22 @@ export function renderUserList(updateHeader = false) {
 		});
 	}
 	
-	// 底部显示自己
-	if (me) {
+	// 底部显示自己（使用 rd.myUserName 和 rd.myRole）
+	// Display self at bottom (using rd.myUserName and rd.myRole)
+	if (rd.myUserName) {
 		const divider = document.createElement('div');
 		divider.className = 'member-divider';
 		divider.innerHTML = `<span>${t('ui.me_section', '我')}</span>`;
 		userListEl.appendChild(divider);
-		userListEl.appendChild(createUserItem(me, true, myRole));
+		
+		// 创建一个虚拟的用户对象来显示自己
+		const meObj = {
+			clientId: rd.myId || 'self',
+			userName: rd.myUserName,
+			username: rd.myUserName,
+			role: myRole
+		};
+		userListEl.appendChild(createUserItem(meObj, true, myRole));
 	}
 	
 	if (updateHeader) {

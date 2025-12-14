@@ -200,12 +200,31 @@ export function handleClientList(idx, list, selfId) {
 			handleClientLeft(idx, oldId)
 		}
 	}
-	rd.userList = list;
+	
+	// 标准化用户对象属性名，确保 userName 和 role 正确设置
+	// Normalize user object properties, ensure userName and role are set correctly
+	rd.userList = list.map(u => ({
+		clientId: u.clientId,
+		userName: u.userName || u.username || u.name || '',
+		username: u.userName || u.username || u.name || '',
+		role: u.role || 'user'
+	}));
 	rd.userMap = {};
-	list.forEach(u => {
+	rd.userList.forEach(u => {
 		rd.userMap[u.clientId] = u
 	});
-	rd.myId = selfId;
+	
+	// 如果传入了 selfId 则使用，否则尝试通过用户名匹配找到自己
+	// If selfId is provided use it, otherwise try to find self by username match
+	if (selfId) {
+		rd.myId = selfId;
+	} else if (!rd.myId && rd.myUserName) {
+		// 尝试通过用户名找到自己的 clientId
+		const me = rd.userList.find(u => u.userName === rd.myUserName);
+		if (me) {
+			rd.myId = me.clientId;
+		}
+	}
 	
 	// 存储自己的 clientId 到 IP 的映射（用于 IP 禁言功能）
 	// 每个用户只存储自己的映射，管理员通过查询获取
@@ -237,12 +256,22 @@ export function handleClientList(idx, list, selfId) {
 export function handleClientSecured(idx, user) {
 	const rd = roomsData[idx];
 	if (!rd) return;
-	rd.userMap[user.clientId] = user;
-	const existingUserIndex = rd.userList.findIndex(u => u.clientId === user.clientId);
+	
+	// 标准化用户对象属性名
+	// Normalize user object properties
+	const normalizedUser = {
+		clientId: user.clientId,
+		userName: user.userName || user.username || user.name || '',
+		username: user.userName || user.username || user.name || '',
+		role: user.role || 'user'
+	};
+	
+	rd.userMap[normalizedUser.clientId] = normalizedUser;
+	const existingUserIndex = rd.userList.findIndex(u => u.clientId === normalizedUser.clientId);
 	if (existingUserIndex === -1) {
-		rd.userList.push(user)
+		rd.userList.push(normalizedUser)
 	} else {
-		rd.userList[existingUserIndex] = user
+		rd.userList[existingUserIndex] = normalizedUser
 	}
 	if (activeRoomIndex === idx) {
 		renderUserList(false);
