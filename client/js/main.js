@@ -51,7 +51,8 @@ import {
 import {
 	roomsData,         // 当前所有房间的数据 / Data of all rooms
 	activeRoomIndex,   // 当前激活的房间索引 / Index of the active room
-	joinRoom           // 加入房间的函数 / Function to join a room
+	joinRoom,          // 加入房间的函数 / Function to join a room
+	saveMyMessageToPrivateChat  // 保存消息到私聊记录
 } from './room.js';
 
 // 从 chat.js 中导入聊天功能相关的函数
@@ -97,6 +98,7 @@ updateStaticTexts();
 // Expose functions to the global window object for accessibility
 window.addSystemMsg = addSystemMsg;
 window.addOtherMsg = addOtherMsg;
+window.addMsg = addMsg;  // 添加 addMsg 用于单聊模式
 window.joinRoom = joinRoom;
 window.notifyMessage = notifyMessage;
 window.setupEmojiPicker = setupEmojiPicker;
@@ -215,8 +217,14 @@ window.addEventListener('DOMContentLoaded', () => {
 							p: encryptedClientMessage,
 							c: rd.privateChatTargetId
 						};
-						const encryptedMessageForServer = rd.chat.encryptServerMessage(serverRelayPayload, rd.chat.serverShared);						rd.chat.sendMessage(encryptedMessageForServer);
+						const encryptedMessageForServer = rd.chat.encryptServerMessage(serverRelayPayload, rd.chat.serverShared);
+						rd.chat.sendMessage(encryptedMessageForServer);
 						addMsg(messageContent, false, 'image_private');
+						// 保存到私聊记录
+						saveMyMessageToPrivateChat(rd.privateChatTargetId, {
+							text: messageContent,
+							msgType: 'image_private'
+						});
 					} else {
 						addSystemMsg(`${t('system.private_message_failed', 'Cannot send private message to')} ${rd.privateChatTargetName}. ${t('system.user_not_connected', 'User might not be fully connected.')}`)
 					}
@@ -248,7 +256,13 @@ window.addEventListener('DOMContentLoaded', () => {
 							c: rd.privateChatTargetId
 						};
 						const encryptedMessageForServer = rd.chat.encryptServerMessage(serverRelayPayload, rd.chat.serverShared);
-						rd.chat.sendMessage(encryptedMessageForServer);					addMsg(text, false, 'text_private');
+						rd.chat.sendMessage(encryptedMessageForServer);
+						addMsg(text, false, 'text_private');
+						// 保存到私聊记录
+						saveMyMessageToPrivateChat(rd.privateChatTargetId, {
+							text: text,
+							msgType: 'text_private'
+						});
 					} else {
 						addSystemMsg(`${t('system.private_message_failed', 'Cannot send private message to')} ${rd.privateChatTargetName}. ${t('system.user_not_connected', 'User might not be fully connected.')}`)
 					}
@@ -256,7 +270,8 @@ window.addEventListener('DOMContentLoaded', () => {
 					// 公共频道消息发送
 					// Send public message
 					rd.chat.sendChannelMessage('text', text);
-					addMsg(text);				}
+					addMsg(text);
+				}
 			}
 			
 			// 清空输入框并触发 input 事件

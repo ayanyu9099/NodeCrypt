@@ -72,15 +72,16 @@ class NodeCrypt {
 		this.decryptClientMessage = this.decryptClientMessage.bind(this)
 	}
 
-	// Set user credentials (username, channel, password)
-	// 设置用户凭证（用户名、频道、密码）
-	setCredentials(username, channel, password) {
+	// Set user credentials (username, channel, password, role)
+	// 设置用户凭证（用户名、频道、密码、角色）
+	setCredentials(username, channel, password, role = 'user') {
 		this.logEvent('setCredentials');
 		try {
 			this.credentials = {
 				username: username,
 				channel: sha256(channel),
-				password: sha256(password)
+				password: sha256(password),
+				role: role  // 用户角色: 'admin' 或 'user'
 			}
 		} catch (error) {
 			this.logEvent('setCredentials', error, 'error');
@@ -304,7 +305,8 @@ class NodeCrypt {
 					a: 'c',
 					p: this.encryptClientMessage({
 						a: 'u',
-						p: this.credentials.username
+						p: this.credentials.username,
+						r: this.credentials.role  // 传递角色信息
 					}, this.channel[serverDecrypted.c].shared),
 					c: serverDecrypted.c
 				}, this.serverShared))
@@ -321,11 +323,13 @@ class NodeCrypt {
 			}
 			if (clientDecrypted.a === 'u' && this.isString(clientDecrypted.p) && clientDecrypted.p.match(/\S+/) && !this.channel[serverDecrypted.c].username) {
 				this.channel[serverDecrypted.c].username = clientDecrypted.p.replace(/^\s+/, '').replace(/\s+$/, '');
+				this.channel[serverDecrypted.c].role = clientDecrypted.r || 'user';  // 保存角色信息
 				if (this.callbacks.onClientSecured) {
 					try {
 						this.callbacks.onClientSecured({
 							clientId: serverDecrypted.c,
-							username: this.channel[serverDecrypted.c].username
+							username: this.channel[serverDecrypted.c].username,
+							role: this.channel[serverDecrypted.c].role  // 传递角色信息
 						})
 					} catch (error) {
 						this.logEvent('onMessage-client-secured-callback', error, 'error')

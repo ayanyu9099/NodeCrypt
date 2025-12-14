@@ -24,6 +24,12 @@ import { t } from './util.i18n.js';
 let roomsData = [];
 let activeRoomIndex = -1;
 
+// User roles - 用户角色
+export const USER_ROLES = {
+	ADMIN: 'admin',
+	USER: 'user'
+};
+
 // Get a new room data object
 // 获取一个新的房间数据对象
 export function getNewRoomData() {
@@ -33,13 +39,16 @@ export function getNewRoomData() {
 		userMap: {},
 		myId: null,
 		myUserName: '',
+		myRole: USER_ROLES.USER,  // 用户角色
 		chat: null,
 		messages: [],
 		prevUserList: [],
 		knownUserIds: new Set(),
 		unreadCount: 0,
 		privateChatTargetId: null,
-		privateChatTargetName: null
+		privateChatTargetName: null,
+		// 单聊模式：每个用户的独立聊天记录
+		privateChats: {}  // { oderId: { messages: [], unreadCount: 0 } }
 	}
 }
 
@@ -94,17 +103,22 @@ export function renderRooms(activeId = 0) {
 
 // Join a room
 // 加入一个房间
-export function joinRoom(userName, roomName, password, modal = null, onResult) {
+export function joinRoom(userName, roomName, password, modal = null, onResult, userRole = USER_ROLES.USER) {
 	const newRd = getNewRoomData();
 	newRd.roomName = roomName;
 	newRd.myUserName = userName;
 	newRd.password = password;
+	newRd.myRole = userRole;  // 保存用户角色
 	roomsData.push(newRd);
 	const idx = roomsData.length - 1;
 	switchRoom(idx);
 	const sidebarUsername = $id('sidebar-username');
 	if (sidebarUsername) sidebarUsername.textContent = userName;
 	setSidebarAvatar(userName);
+	
+	// 显示用户角色标识
+	updateRoleBadge(userRole);
+	
 	let closed = false;
 	const callbacks = {
 		onServerClosed: () => {
@@ -113,21 +127,21 @@ export function joinRoom(userName, roomName, password, modal = null, onResult) {
 				closed = true;
 				onResult(false)
 			}
-		},		onServerSecured: () => {
+		},
+		onServerSecured: () => {
 			if (modal) modal.remove();
 			else {
 				const loginContainer = $id('login-container');
 				if (loginContainer) loginContainer.style.display = 'none';
 				const chatContainer = $id('chat-container');
 				if (chatContainer) chatContainer.style.display = '';
-				
-
 			}
 			if (onResult && !closed) {
 				closed = true;
 				onResult(true)
 			}
-			addSystemMsg(t('system.secured', 'connection secured'))
+			const roleText = userRole === USER_ROLES.ADMIN ? t('system.admin_login', '管理员身份登录') : '';
+			addSystemMsg(t('system.secured', 'connection secured') + (roleText ? ' - ' + roleText : ''))
 		},
 		onClientSecured: (user) => handleClientSecured(idx, user),
 		onClientList: (list, selfId) => handleClientList(idx, list, selfId),
@@ -135,9 +149,27 @@ export function joinRoom(userName, roomName, password, modal = null, onResult) {
 		onClientMessage: (msg) => handleClientMessage(idx, msg)
 	};
 	const chatInst = new window.NodeCrypt(window.config, callbacks);
-	chatInst.setCredentials(userName, roomName, password);
+	chatInst.setCredentials(userName, roomName, password, userRole);  // 传递角色
 	chatInst.connect();
 	roomsData[idx].chat = chatInst
+}
+
+// 更新角色标识
+function updateRoleBadge(role) {
+	const sidebarUser = document.querySelector('.sidebar-user');
+	if (!sidebarUser) return;
+	
+	// 移除旧的角色标识
+	const oldBadge = sidebarUser.querySelector('.role-badge');
+	if (oldBadge) oldBadge.remove();
+	
+	// 如果是管理员，添加标识
+	if (role === USER_ROLES.ADMIN) {
+		const badge = document.createElement('span');
+		badge.className = 'role-badge admin-badge';
+		badge.textContent = t('ui.admin', '管理员');
+		sidebarUser.appendChild(badge);
+	}
 }
 
 // Handle the client list update
@@ -243,6 +275,8 @@ export function handleClientMessage(idx, msg) {
 	}
 
 	let msgType = msg.type || 'text';
+	const isPrivateMessage = msgType.includes('_private');
+	const senderId = msg.clientId;
 
 	// Handle file messages
 	if (msgType.startsWith('file_')) {
@@ -255,20 +289,21 @@ export function handleClientMessage(idx, msg) {
 			const historyMsgType = msgType === 'file_start_private' ? 'file_private' : 'file';
 			
 			const fileId = msg.data && msg.data.fileId;
-			if (fileId) { // Only proceed if we have a fileId
-				const messageAlreadyInHistory = newRd.messages.some(
-					m => m.msgType === historyMsgType && m.text && m.text.fileId === fileId && m.userName === realUserName
-				);
-
-				if (!messageAlreadyInHistory) {
-					newRd.messages.push({
-						type: 'other',
-						text: msg.data, // This is the file metadata object
-						userName: realUserName,
-						avatar: realUserName,
-						msgType: historyMsgType,
-						timestamp: (msg.data && msg.data.timestamp) || Date.now() 
-					});
+			if (fileId) {
+				const messageObj = {
+					type: 'other',
+					text: msg.data,
+					userName: realUserName,
+					avatar: realUserName,
+					msgType: historyMsgType,
+					timestamp: (msg.data && msg.data.timestamp) || Date.now()
+				};
+				
+				// 单聊模式：存储到对应用户的私聊记录
+				if (isPrivateMessage && senderId) {
+					addToPrivateChat(newRd, senderId, messageObj);
+				} else {
+					newRd.messages.push(messageObj);
 				}
 			}
 
@@ -278,21 +313,18 @@ export function handleClientMessage(idx, msg) {
 			}
 		}
 
-		// Part 2: Handle UI interaction (rendering in active room, or unread count in inactive room)
+		// Part 2: Handle UI interaction
 		if (activeRoomIndex === idx) {
-			// If it's the active room, delegate to util.file.js to handle UI and file transfer state.
-			// This applies to all file-related messages (file_start, file_volume, file_end, etc.)
 			if (window.handleFileMessage) {
-				window.handleFileMessage(msg.data, msgType.includes('_private'));
+				window.handleFileMessage(msg.data, isPrivateMessage);
 			}
 		} else {
-			// If it's not the active room, only increment unread count for 'file_start' messages.
 			if (msgType === 'file_start' || msgType === 'file_start_private') {
 				newRd.unreadCount = (newRd.unreadCount || 0) + 1;
 				renderRooms(activeRoomIndex);
 			}
 		}
-		return; // File messages are fully handled.
+		return;
 	}
 
 	// Handle image messages (both new and legacy formats)
@@ -306,25 +338,52 @@ export function handleClientMessage(idx, msg) {
 			msgType = 'image';
 		}
 	}
+	
 	let realUserName = msg.userName;
 	if (!realUserName && msg.clientId && newRd.userMap[msg.clientId]) {
 		realUserName = newRd.userMap[msg.clientId].userName || newRd.userMap[msg.clientId].username || newRd.userMap[msg.clientId].name;
 	}
 
-	// Add message to messages array for chat history
-	roomsData[idx].messages.push({
+	const messageObj = {
 		type: 'other',
 		text: msg.data,
 		userName: realUserName,
 		avatar: realUserName,
 		msgType: msgType,
 		timestamp: Date.now()
-	});
+	};
 
-	// Only add message to chat display if it's for the active room
+	// 单聊模式：私聊消息存储到对应用户的聊天记录
+	if (isPrivateMessage && senderId) {
+		addToPrivateChat(newRd, senderId, messageObj);
+		
+		// 如果当前不是和这个用户聊天，增加未读计数
+		if (newRd.privateChatTargetId !== senderId) {
+			if (!newRd.privateChats[senderId]) {
+				newRd.privateChats[senderId] = { messages: [], unreadCount: 0 };
+			}
+			newRd.privateChats[senderId].unreadCount = (newRd.privateChats[senderId].unreadCount || 0) + 1;
+		}
+	} else {
+		// 公共消息（群聊模式下使用）
+		newRd.messages.push(messageObj);
+	}
+
+	// Only add message to chat display if it's for the active room and current chat target
 	if (activeRoomIndex === idx) {
-		if (window.addOtherMsg) {
-			window.addOtherMsg(msg.data, realUserName, realUserName, false, msgType);
+		// 单聊模式：只有当前正在和发送者聊天时才显示消息
+		if (isPrivateMessage) {
+			if (newRd.privateChatTargetId === senderId) {
+				if (window.addOtherMsg) {
+					window.addOtherMsg(msg.data, realUserName, realUserName, false, msgType);
+				}
+			}
+			// 更新用户列表以显示未读消息
+			renderUserList(false);
+		} else {
+			if (window.addOtherMsg) {
+				window.addOtherMsg(msg.data, realUserName, realUserName, false, msgType);
+			}
 		}
 	} else {
 		roomsData[idx].unreadCount = (roomsData[idx].unreadCount || 0) + 1;
@@ -337,20 +396,85 @@ export function handleClientMessage(idx, msg) {
 	}
 }
 
+// 添加消息到私聊记录
+function addToPrivateChat(rd, oderId, messageObj) {
+	if (!rd.privateChats[oderId]) {
+		rd.privateChats[oderId] = { messages: [], unreadCount: 0 };
+	}
+	rd.privateChats[oderId].messages.push(messageObj);
+}
+
 // Toggle private chat with a user
-// 切换与某用户的私聊
+// 切换与某用户的私聊（单聊模式）
 export function togglePrivateChat(targetId, targetName) {
 	const rd = roomsData[activeRoomIndex];
 	if (!rd) return;
+	
+	const previousTarget = rd.privateChatTargetId;
+	
 	if (rd.privateChatTargetId === targetId) {
+		// 再次点击同一用户，取消私聊模式
 		rd.privateChatTargetId = null;
-		rd.privateChatTargetName = null
+		rd.privateChatTargetName = null;
 	} else {
+		// 切换到新用户
 		rd.privateChatTargetId = targetId;
-		rd.privateChatTargetName = targetName
+		rd.privateChatTargetName = targetName;
+		
+		// 清除该用户的未读计数
+		if (rd.privateChats[targetId]) {
+			rd.privateChats[targetId].unreadCount = 0;
+		}
 	}
+	
+	// 重新渲染聊天区域以显示对应的聊天记录
+	renderPrivateChatArea(rd, targetId);
 	renderUserList();
-	updateChatInputStyle()
+	updateChatInputStyle();
+}
+
+// 渲染私聊聊天区域
+function renderPrivateChatArea(rd, targetId) {
+	const chatArea = document.getElementById('chat-area');
+	if (!chatArea) return;
+	
+	// 清空聊天区域
+	chatArea.innerHTML = '';
+	
+	if (!targetId || !rd.privateChats[targetId]) {
+		// 没有选择用户或没有聊天记录，显示提示
+		if (!targetId) {
+			const tip = document.createElement('div');
+			tip.className = 'chat-empty-tip';
+			tip.innerHTML = `
+				<div class="empty-icon">💬</div>
+				<div class="empty-text">${t('ui.select_user_to_chat', '选择一个用户开始聊天')}</div>
+			`;
+			chatArea.appendChild(tip);
+		}
+		return;
+	}
+	
+	// 渲染该用户的聊天记录
+	const privateChat = rd.privateChats[targetId];
+	privateChat.messages.forEach(m => {
+		if (m.type === 'me') {
+			if (window.addMsg) {
+				window.addMsg(m.text, true, m.msgType || 'text', m.timestamp);
+			}
+		} else if (m.type === 'system') {
+			if (window.addSystemMsg) {
+				window.addSystemMsg(m.text, true, m.timestamp);
+			}
+		} else {
+			if (window.addOtherMsg) {
+				window.addOtherMsg(m.text, m.userName, m.avatar, true, m.msgType || 'text', m.timestamp);
+			}
+		}
+	});
+	
+	// 滚动到底部
+	chatArea.scrollTop = chatArea.scrollHeight;
 }
 
 
@@ -374,6 +498,23 @@ export function exitRoom() {
 		}
 	}
 	return false
+}
+
+// 保存发送的消息到私聊记录（供 main.js 调用）
+export function saveMyMessageToPrivateChat(targetId, messageObj) {
+	const rd = roomsData[activeRoomIndex];
+	if (!rd || !targetId) return;
+	
+	if (!rd.privateChats[targetId]) {
+		rd.privateChats[targetId] = { messages: [], unreadCount: 0 };
+	}
+	
+	rd.privateChats[targetId].messages.push({
+		type: 'me',
+		text: messageObj.text,
+		msgType: messageObj.msgType,
+		timestamp: messageObj.timestamp || Date.now()
+	});
 }
 
 export { roomsData, activeRoomIndex };
