@@ -799,6 +799,7 @@ export function generateLoginForm(isModal = false) {
 		: `<option value="" disabled selected>${t('ui.select_room', '-- 选择房间 --')}</option>${roomOptions}`;
 	
 	return `
+		<h2 class="login-title">${t('ui.encrypted_chat', '加密聊天系统')}</h2>
 		<div class="input-group">
 			<input id="userName${idPrefix}" type="text" autocomplete="username" required minlength="1" maxlength="15" placeholder="${t('ui.username', 'Username')}">
 		</div>
