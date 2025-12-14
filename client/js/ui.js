@@ -658,9 +658,9 @@ export function generateLoginForm(isModal = false) {
 				${roomOptions}
 			</select>
 		</div>
-		<div class="input-group password-group" id="password-group${idPrefix}" style="display: none;">
-			<label for="password${idPrefix}">${t('ui.room_password', '房间密码')}</label>
-			<input id="password${idPrefix}" type="password" autocomplete="off" minlength="1" maxlength="30" placeholder="${t('ui.room_password', '房间密码')}">
+		<div class="input-group password-group" id="password-group${idPrefix}">
+			<label for="password${idPrefix}">${t('ui.room_password', '房间密码')} <span class="optional">${t('ui.optional', '(可选)')}</span></label>
+			<input id="password${idPrefix}" type="password" autocomplete="off" maxlength="30" placeholder="${t('ui.room_password', '房间密码')}">
 		</div>
 		<div class="input-group admin-group">
 			<label for="adminPassword${idPrefix}">${t('ui.admin_password', '管理员密码')} <span class="optional">${t('ui.optional', '(可选)')}</span></label>
