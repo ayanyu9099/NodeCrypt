@@ -70,6 +70,7 @@ import {
 	addMsg,               // 添加普通消息到聊天窗口 / Add a normal message to chat
 	addOtherMsg,          // 添加其他用户消息 / Add message from other users
 	addSystemMsg,         // 添加系统消息 / Add a system message
+	showToastMsg,         // 显示即时提示消息 / Show instant toast message
 	setupImagePreview,    // 设置图片预览功能 / Setup image preview
 	setupInputPlaceholder, // 设置输入框的占位提示 / Setup placeholder for input box
 	autoGrowInput         // 自动调整输入框高度 / Auto adjust input height
@@ -203,13 +204,12 @@ window.addEventListener('DOMContentLoaded', () => {
 			const endTime = getMuteEndTime();
 			let muteMsg = t('admin.you_are_muted', '您已被禁言，无法发送消息');
 			if (remaining) {
-				muteMsg += ` (${t('admin.remaining_time', '剩余')}: ${remaining}`;
+				muteMsg += `\n${t('admin.remaining_time', '剩余')}: ${remaining}`;
 				if (endTime) {
-					muteMsg += `, ${t('admin.unmute_at', '解除时间')}: ${endTime}`;
+					muteMsg += `\n${t('admin.unmute_at', '解除时间')}: ${endTime}`;
 				}
-				muteMsg += ')';
 			}
-			addSystemMsg(muteMsg);
+			showToastMsg(muteMsg, 'error');
 			return;
 		}
 		

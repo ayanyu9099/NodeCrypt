@@ -63,14 +63,100 @@ console.log('server started', config.wsHost, config.wsPort);
 
 var clients = {};
 var channels = {};
+var bannedIPs = new Map(); // IP 禁言列表 { ip: { bannedAt, bannedUntil, reason } }
+
+// 获取客户端 IP 地址
+// Get client IP address
+const getClientIP = (connection, req) => {
+	// 优先从 X-Forwarded-For 获取（代理情况）
+	const forwarded = req && req.headers && req.headers['x-forwarded-for'];
+	if (forwarded) {
+		return forwarded.split(',')[0].trim();
+	}
+	// 从 X-Real-IP 获取
+	const realIP = req && req.headers && req.headers['x-real-ip'];
+	if (realIP) {
+		return realIP;
+	}
+	// 从连接获取
+	if (req && req.socket && req.socket.remoteAddress) {
+		return req.socket.remoteAddress;
+	}
+	return 'unknown';
+};
+
+// 检查 IP 是否被禁言
+// Check if IP is banned
+const isIPBanned = (ip) => {
+	const ban = bannedIPs.get(ip);
+	if (!ban) return false;
+	
+	// 检查是否过期
+	if (ban.bannedUntil && ban.bannedUntil > 0 && Date.now() > ban.bannedUntil) {
+		bannedIPs.delete(ip);
+		return false;
+	}
+	return true;
+};
+
+// 禁言 IP
+// Ban IP address
+const banIP = (ip, duration = 0, reason = '') => {
+	const bannedUntil = duration > 0 ? Date.now() + duration * 60 * 1000 : 0;
+	bannedIPs.set(ip, {
+		bannedAt: Date.now(),
+		bannedUntil,
+		reason
+	});
+	logEvent('ban-ip', { ip, duration, reason }, 'info');
+	
+	// 断开所有该 IP 的连接
+	for (const clientId in clients) {
+		if (clients[clientId].ip === ip) {
+			try {
+				// 发送禁言通知
+				if (clients[clientId].shared) {
+					sendMessage(clients[clientId].connection, encryptMessage({
+						a: 'banned',
+						d: { duration, reason }
+					}, clients[clientId].shared));
+				}
+				setTimeout(() => {
+					if (clients[clientId]) {
+						clients[clientId].connection.terminate();
+					}
+				}, 1000);
+			} catch (error) {
+				logEvent('ban-ip-disconnect', error, 'error');
+			}
+		}
+	}
+};
+
+// 解除 IP 禁言
+// Unban IP address
+const unbanIP = (ip) => {
+	bannedIPs.delete(ip);
+	logEvent('unban-ip', { ip }, 'info');
+};
 
 // WebSocket server connection event handler
 // WebSocket 服务器连接事件处理程序
-wss.on('connection', (connection) => {
+wss.on('connection', (connection, req) => {
 
 	if (
 		!connection
 	) {
+		return;
+	}
+	
+	// 获取客户端 IP
+	const clientIP = getClientIP(connection, req);
+	
+	// 检查 IP 是否被禁言
+	if (isIPBanned(clientIP)) {
+		logEvent('connection-banned', clientIP, 'info');
+		closeConnection(connection);
 		return;
 	}
 
@@ -110,7 +196,8 @@ wss.on('connection', (connection) => {
 		connection: connection,
 		seen: getTime(),
 		key: null,
-		channel: null
+		channel: null,
+		ip: clientIP  // 保存客户端 IP
 	};
 
 	try {
@@ -285,12 +372,65 @@ const processEncryptedMessage = (clientId, message) => {
 			handleClientMessage(clientId, decrypted);
 		} else if (action === 'w') {
 			handleChannelMessage(clientId, decrypted);
+		} else if (action === 'ban_ip') {
+			handleBanIP(clientId, decrypted);
+		} else if (action === 'unban_ip') {
+			handleUnbanIP(clientId, decrypted);
 		}
 
 	} catch (error) {
 		logEvent('process-encrypted-message', [clientId, error], 'error');
 	} finally {
 		decrypted = null;
+	}
+};
+
+// 处理 IP 禁言请求
+// Handle IP ban request
+const handleBanIP = (clientId, decrypted) => {
+	try {
+		const targetClientId = decrypted.t; // 目标用户 ID
+		const duration = decrypted.d || 0;  // 禁言时长（分钟）
+		const reason = decrypted.r || '';   // 禁言原因
+		
+		if (!targetClientId || !clients[targetClientId]) {
+			return;
+		}
+		
+		const targetIP = clients[targetClientId].ip;
+		if (targetIP && targetIP !== 'unknown') {
+			banIP(targetIP, duration, reason);
+			
+			// 通知管理员禁言成功
+			if (clients[clientId] && clients[clientId].shared) {
+				sendMessage(clients[clientId].connection, encryptMessage({
+					a: 'ban_result',
+					s: true,
+					ip: targetIP
+				}, clients[clientId].shared));
+			}
+		}
+	} catch (error) {
+		logEvent('handle-ban-ip', error, 'error');
+	}
+};
+
+// 处理解除 IP 禁言请求
+// Handle IP unban request
+const handleUnbanIP = (clientId, decrypted) => {
+	try {
+		const targetClientId = decrypted.t;
+		
+		if (!targetClientId || !clients[targetClientId]) {
+			return;
+		}
+		
+		const targetIP = clients[targetClientId].ip;
+		if (targetIP && targetIP !== 'unknown') {
+			unbanIP(targetIP);
+		}
+	} catch (error) {
+		logEvent('handle-unban-ip', error, 'error');
 	}
 };
 

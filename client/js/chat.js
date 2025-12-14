@@ -251,6 +251,26 @@ export function addSystemMsg(text, isHistory = false, timestamp = null) {
 	chatArea.scrollTop = chatArea.scrollHeight;
 }
 
+// 显示即时提示消息（不保存到历史记录，立即显示）
+// Show instant toast message (not saved to history, displayed immediately)
+export function showToastMsg(text, type = 'warning') {
+	// 移除已存在的 toast
+	const existingToast = document.querySelector('.toast-message');
+	if (existingToast) existingToast.remove();
+	
+	const toast = createElement('div', {
+		class: `toast-message toast-${type}`
+	}, `<span class="toast-content">${textToHTML(text)}</span>`);
+	
+	document.body.appendChild(toast);
+	
+	// 3秒后自动消失
+	setTimeout(() => {
+		toast.classList.add('toast-fade-out');
+		setTimeout(() => toast.remove(), 300);
+	}, 3000);
+}
+
 // Add an announcement message to the chat area
 // 添加公告消息到聊天区域
 export function addAnnouncementMsg(text, fromUser = '') {

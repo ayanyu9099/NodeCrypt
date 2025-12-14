@@ -28,7 +28,7 @@ export function isUserMuted(userId) {
 }
 
 // 禁言用户
-export function muteUser(userId, userName, duration = 0) {
+export function muteUser(userId, userName, duration = 0, banIP = false) {
 	const rd = roomsData[activeRoomIndex];
 	if (!rd || rd.myRole !== 'admin') return false;
 	
@@ -43,10 +43,30 @@ export function muteUser(userId, userName, duration = 0) {
 	// 发送禁言通知给被禁言用户
 	sendAdminAction(userId, 'mute', { duration });
 	
+	// 如果选择了 IP 禁言，发送请求到服务器
+	if (banIP && rd.chat) {
+		sendIPBanRequest(userId, duration);
+	}
+	
 	const durationText = duration > 0 ? `${duration}${t('admin.minutes', '分钟')}` : t('admin.permanent', '永久');
-	addSystemMsg(`${t('admin.muted_user', '已禁言用户')} ${userName} (${durationText})`);
+	const ipText = banIP ? ` (${t('admin.ip_banned', 'IP已禁止')})` : '';
+	addSystemMsg(`${t('admin.muted_user', '已禁言用户')} ${userName} (${durationText})${ipText}`);
 	
 	return true;
+}
+
+// 发送 IP 禁言请求到服务器
+function sendIPBanRequest(targetId, duration) {
+	const rd = roomsData[activeRoomIndex];
+	if (!rd || !rd.chat) return;
+	
+	const payload = {
+		a: 'ban_ip',
+		t: targetId,
+		d: duration
+	};
+	const encryptedMessage = rd.chat.encryptServerMessage(payload, rd.chat.serverShared);
+	rd.chat.sendMessage(encryptedMessage);
 }
 
 // 解除禁言
@@ -200,6 +220,10 @@ export function showAdminMenu(user, event) {
 			<span class="admin-menu-icon">${isMuted ? '🔊' : '🔇'}</span>
 			${isMuted ? t('admin.unmute', '解除禁言') : t('admin.mute', '禁言')}
 		</div>
+		<div class="admin-menu-item" data-action="mute_ip">
+			<span class="admin-menu-icon">🌐</span>
+			${t('admin.mute_ip', 'IP禁言')}
+		</div>
 	`;
 	
 	// 定位菜单 - 确保不超出屏幕
@@ -240,9 +264,15 @@ export function showAdminMenu(user, event) {
 				}
 				break;
 			case 'mute':
-				const duration = prompt(t('admin.mute_duration', '请输入禁言时长（分钟，0为永久）:'), '10');
-				if (duration !== null) {
-					muteUser(user.clientId, userName, parseInt(duration) || 0);
+				const muteDuration = prompt(t('admin.mute_duration', '请输入禁言时长（分钟，0为永久）:'), '10');
+				if (muteDuration !== null) {
+					muteUser(user.clientId, userName, parseInt(muteDuration) || 0, false);
+				}
+				break;
+			case 'mute_ip':
+				const ipDuration = prompt(t('admin.mute_ip_duration', '请输入IP禁言时长（分钟，0为永久）:\n此操作将禁止该用户及其所有相同IP的用户'), '10');
+				if (ipDuration !== null) {
+					muteUser(user.clientId, userName, parseInt(ipDuration) || 0, true);
 				}
 				break;
 			case 'unmute':
