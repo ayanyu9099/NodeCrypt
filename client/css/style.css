@@ -1908,6 +1908,7 @@ h2{
 /* Password group animation */
 .password-group {
 	transition: opacity 0.3s ease, max-height 0.3s ease;
+	margin-top: 8px;
 }
 
 /* Admin group styles */
