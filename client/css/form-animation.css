@@ -5,34 +5,37 @@
 
 .input-group .floating-label {
   position: absolute;
-  top: 14px;
+  top: 50%;
   left: 16px;
+  transform: translateY(-50%);
   pointer-events: none;
-  font-size: 1.1rem;
+  font-size: 1rem;
   color: #888;
-  transition: 0.25s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  transition: all 0.25s cubic-bezier(0.68, -0.55, 0.265, 1.55);
   z-index: 1;
-  background: #fff;
+  background: transparent;
   padding: 0 4px;
 }
 
-/* 输入框获得焦点或有内容时，标签上移 */
+/* 输入框获得焦点或有内容时，标签上移到输入框上方 */
 .input-group input:focus + .floating-label,
 .input-group input:not(:placeholder-shown) + .floating-label {
-  color: #30a8f7;
-  transform: translateY(-28px);
+  top: 0;
+  transform: translateY(-50%);
   font-size: 12px;
+  color: #30a8f7;
+  background: #fff;
 }
 
 /* Select 元素的浮动标签 - 始终显示在上方 */
 .input-group select + .floating-label,
 .input-group .floating-label-select {
-  top: -10px !important;
-  transform: none !important;
+  top: 0 !important;
+  transform: translateY(-50%) !important;
   font-size: 12px !important;
-  background: #fff;
-  padding: 0 4px;
-  color: #30a8f7;
+  background: #fff !important;
+  padding: 0 4px !important;
+  color: #30a8f7 !important;
 }
 
 .input-group .floating-label span {
@@ -42,7 +45,7 @@
   min-width: 0;
 }
 
-/* 确保输入框可点击 - 修复 Safari 移动端问题 */
+/* 确保输入框可点击 */
 .input-group input,
 .input-group select {
   position: relative;
