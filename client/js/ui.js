@@ -584,23 +584,41 @@ export function refreshMemberList() {
 		refreshBtn.disabled = true;
 	}
 	
+	console.log('[UI] Refreshing member list, connection state:', 
+		rd.chat.isOpen() ? 'open' : (rd.chat.isClosed() ? 'closed' : 'unknown'));
+	
 	// 检查连接状态
 	if (rd.chat.isClosed()) {
 		console.log('[UI] Connection closed, reconnecting...');
+		// 重连会触发服务器重新发送用户列表
 		rd.chat.connect();
+		// 重连需要更长时间
+		setTimeout(() => {
+			renderUserList(true);
+			if (refreshBtn) {
+				refreshBtn.classList.remove('refreshing');
+				refreshBtn.disabled = false;
+			}
+		}, 2000);
 	} else if (rd.chat.isOpen()) {
-		// 发送 ping 确认连接，服务器会返回最新的用户列表
-		rd.chat.sendMessage('ping');
-	}
-	
-	// 强制重新渲染
-	setTimeout(() => {
+		// 连接正常，直接重新渲染
 		renderUserList(true);
 		if (refreshBtn) {
 			refreshBtn.classList.remove('refreshing');
 			refreshBtn.disabled = false;
 		}
-	}, 500);
+	} else {
+		// 连接状态异常，尝试重连
+		console.log('[UI] Connection state abnormal, reconnecting...');
+		rd.chat.connect();
+		setTimeout(() => {
+			renderUserList(true);
+			if (refreshBtn) {
+				refreshBtn.classList.remove('refreshing');
+				refreshBtn.disabled = false;
+			}
+		}, 2000);
+	}
 }
 
 // Render the user/member list - 单聊模式
@@ -620,9 +638,15 @@ export function renderUserList(updateHeader = false) {
 	// 所以直接使用 userList 作为 others
 	let others = [...(rd.userList || [])];
 	
+	console.log('[UI] renderUserList - myRole:', myRole, 'userList length:', rd.userList?.length, 
+		'privateChatTargetId:', rd.privateChatTargetId,
+		'userList:', rd.userList?.map(u => ({ id: u.clientId?.substring(0, 8), name: u.userName, role: u.role })));
+	
 	if (myRole !== 'admin') {
 		// 普通用户只能看到管理员
+		const beforeFilter = others.length;
 		others = others.filter(u => u.role === 'admin');
+		console.log('[UI] Filtered to admins only:', beforeFilter, '->', others.length);
 	}
 	
 	// 添加刷新按钮
@@ -773,8 +797,9 @@ function createChatUserItem(user, rd) {
 	}
 	
 	// 点击开始/切换私聊
+	// 使用原始用户名 rawName，而不是转义后的 safeUserName
 	div.onclick = () => {
-		togglePrivateChat(user.clientId, safeUserName);
+		togglePrivateChat(user.clientId, rawName);
 		// 清除未读计数
 		if (rd.privateChats[user.clientId]) {
 			rd.privateChats[user.clientId].unreadCount = 0;
@@ -802,7 +827,8 @@ export function createUserItem(user, isMe) {
 		avatarEl.innerHTML = cleanSvg
 	}
 	if (!isMe) {
-		div.onclick = () => togglePrivateChat(user.clientId, safeUserName)
+		// 使用原始用户名 rawName，而不是转义后的 safeUserName
+		div.onclick = () => togglePrivateChat(user.clientId, rawName)
 	}
 	return div
 }

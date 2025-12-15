@@ -142,11 +142,9 @@ export function joinRoom(userName, roomName, password, modal = null, onResult, u
 		onServerClosed: () => {
 			console.log('Node connection closed');
 			setConnectionStatus('disconnected');
-			// 连接关闭时，从房间列表中移除
-			const roomIdx = roomsData.findIndex(r => r === newRd);
-			if (roomIdx !== -1) {
-				roomsData.splice(roomIdx, 1);
-			}
+			// 不要在连接关闭时移除房间数据，保留以便重连
+			// Don't remove room data on connection close, keep it for reconnection
+			// 只有在首次连接失败时才通知失败
 			if (onResult && !closed) {
 				closed = true;
 				onResult(false)
@@ -202,22 +200,41 @@ function updateRoleBadge(role) {
 export function handleClientList(idx, list, selfId) {
 	const rd = roomsData[idx];
 	if (!rd) return;
+	
+	console.log('[Room] handleClientList called, list:', list.length, 'selfId:', selfId,
+		'raw list:', list.map(u => ({ id: u.clientId?.substring(0, 8), name: u.userName || u.username, role: u.role })));
+	
+	// 如果新列表为空但旧列表不为空，可能是重连过程中的临时状态，不要清空
+	// If new list is empty but old list is not, it might be a temporary state during reconnect, don't clear
+	if (list.length === 0 && rd.userList && rd.userList.length > 0) {
+		console.log('[Room] Ignoring empty list update, keeping existing userList');
+		return;
+	}
+	
 	const oldUserIds = new Set((rd.userList || []).map(u => u.clientId));
 	const newUserIds = new Set(list.map(u => u.clientId));
+	
+	// 不要在重连时触发 handleClientLeft，因为这会清除私聊状态
+	// 只有当用户真正离开时才处理
+	// Don't trigger handleClientLeft during reconnect, only when user really left
 	for (const oldId of oldUserIds) {
-		if (!newUserIds.has(oldId)) {
+		if (!newUserIds.has(oldId) && oldId !== rd.privateChatTargetId) {
 			handleClientLeft(idx, oldId)
 		}
 	}
 	
 	// 标准化用户对象属性名，确保 userName 和 role 正确设置
 	// Normalize user object properties, ensure userName and role are set correctly
-	rd.userList = list.map(u => ({
+	const newUserList = list.map(u => ({
 		clientId: u.clientId,
 		userName: u.userName || u.username || u.name || '',
 		username: u.userName || u.username || u.name || '',
 		role: u.role || 'user'
 	}));
+	
+	console.log('[Room] New user list:', newUserList.map(u => ({ id: u.clientId, name: u.userName, role: u.role })));
+	
+	rd.userList = newUserList;
 	rd.userMap = {};
 	rd.userList.forEach(u => {
 		rd.userMap[u.clientId] = u
@@ -254,25 +271,31 @@ export function handleClientList(idx, list, selfId) {
 	if (rd.privateChatTargetId && rd.privateChatTargetName) {
 		// 检查当前目标是否还在用户列表中
 		const targetExists = rd.userList.some(u => u.clientId === rd.privateChatTargetId);
+		console.log('[Room] Checking privateChatTargetId:', rd.privateChatTargetId, 
+			'targetName:', rd.privateChatTargetName, 'exists:', targetExists);
+		
 		if (!targetExists) {
 			// 尝试通过用户名找到新的 clientId
-			const targetByName = rd.userList.find(u => 
-				(u.userName || u.username) === rd.privateChatTargetName
-			);
+			const targetByName = rd.userList.find(u => {
+				const uName = u.userName || u.username || '';
+				return uName === rd.privateChatTargetName;
+			});
+			
 			if (targetByName) {
+				const oldId = rd.privateChatTargetId;
 				console.log('[Room] Fixing privateChatTargetId after reconnect:', 
-					rd.privateChatTargetId, '->', targetByName.clientId);
+					oldId, '->', targetByName.clientId);
 				// 迁移聊天记录到新的 clientId
-				if (rd.privateChats[rd.privateChatTargetId]) {
-					rd.privateChats[targetByName.clientId] = rd.privateChats[rd.privateChatTargetId];
-					delete rd.privateChats[rd.privateChatTargetId];
+				if (rd.privateChats[oldId]) {
+					rd.privateChats[targetByName.clientId] = rd.privateChats[oldId];
+					delete rd.privateChats[oldId];
 				}
 				rd.privateChatTargetId = targetByName.clientId;
 			} else {
-				// 目标用户已离线，清除私聊状态
-				console.log('[Room] Private chat target offline, clearing:', rd.privateChatTargetName);
-				rd.privateChatTargetId = null;
-				rd.privateChatTargetName = null;
+				// 目标用户可能还没重连，暂时保留状态，不清除
+				// Target user may not have reconnected yet, keep state temporarily
+				console.log('[Room] Private chat target not found yet, keeping state:', rd.privateChatTargetName);
+				// 不清除，等待目标用户重连
 			}
 		}
 	}
@@ -577,7 +600,23 @@ export function togglePrivateChat(targetId, targetName) {
 	const rd = roomsData[activeRoomIndex];
 	if (!rd) return;
 	
-	const previousTarget = rd.privateChatTargetId;
+	console.log('[Room] togglePrivateChat called - targetId:', targetId, 'targetName:', targetName,
+		'current privateChatTargetId:', rd.privateChatTargetId);
+	
+	// 验证目标用户是否在当前用户列表中
+	const targetUser = rd.userList?.find(u => u.clientId === targetId);
+	if (!targetUser) {
+		console.warn('[Room] Target user not found in userList, trying to find by name:', targetName);
+		// 尝试通过用户名找到用户
+		const userByName = rd.userList?.find(u => (u.userName || u.username) === targetName);
+		if (userByName) {
+			console.log('[Room] Found user by name, updating targetId:', userByName.clientId);
+			targetId = userByName.clientId;
+		} else {
+			console.warn('[Room] User not found by name either, userList:', 
+				rd.userList?.map(u => ({ id: u.clientId?.substring(0, 8), name: u.userName })));
+		}
+	}
 	
 	if (rd.privateChatTargetId === targetId) {
 		// 再次点击同一用户，取消私聊模式
