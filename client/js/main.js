@@ -117,8 +117,7 @@ import {	renderUserList,       // 渲染用户列表 / Render user list
 	setupTabs,            // 设置页面标签切换 / Setup tab switching
 	autofillRoomPwd,      // 自动填充房间密码 / Autofill room password
 	generateLoginForm,    // 生成登录表单HTML / Generate login form HTML
-	initLoginForm,        // 初始化登录表单 / Initialize login form
-	initFlipCard          // 初始化翻转卡片功能 / Initialize flip card functionality
+	initLoginForm         // 初始化登录表单 / Initialize login form
 } from './ui.js';
 
 // 导入连接管理工具
@@ -185,9 +184,6 @@ window.addEventListener('DOMContentLoaded', async () => {
 	preventSpaceInput($id('userName'));
 	preventSpaceInput($id('roomName'));
 	preventSpaceInput($id('password'));
-	
-	// 初始化翻转卡片功能 / Initialize flip card functionality
-	initFlipCard();
 	
 	// 初始化辅助功能和界面设置
 	// Initialize autofill, input placeholders, and menus
