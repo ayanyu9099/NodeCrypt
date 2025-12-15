@@ -65,6 +65,7 @@ const LANGUAGES = {
 			'ui.image': 'Image',
 			'ui.file': 'File',
 			'ui.username_taken': 'This username is already in use in the room. Please choose a different username.',
+			'ui.username_taken_by_admin': 'An admin is using this username. You have been removed from the room.',
 			
 			// Admin features
 			'admin.manage_user': 'Manage User',
@@ -261,6 +262,7 @@ const LANGUAGES = {
 			'ui.image': '图片',
 			'ui.file': '文件',
 			'ui.username_taken': '此用户名已在房间中使用，请更换用户名',
+			'ui.username_taken_by_admin': '管理员使用了此用户名，您已被踢出房间',
 			
 			// Admin features
 			'admin.manage_user': '管理用户',

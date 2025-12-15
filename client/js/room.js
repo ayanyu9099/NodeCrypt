@@ -335,13 +335,40 @@ export function handleClientSecured(idx, user) {
 		// Check if this is a newly joined user (joined within 5 seconds)
 		const isNewlyJoined = rd.joinTime && (Date.now() - rd.joinTime < 5000);
 		
-		console.log('[Room] Duplicate username detected:', normalizedUser.userName, 
-			'isNewlyJoined:', isNewlyJoined, 'duplicateHandled:', rd.duplicateHandled,
-			'timeSinceJoin:', rd.joinTime ? (Date.now() - rd.joinTime) : 'N/A');
+		// 角色优先级：管理员 > 普通用户
+		// Role priority: admin > user
+		const myRole = rd.myRole || 'user';
+		const otherRole = normalizedUser.role || 'user';
 		
-		// 如果是新加入的用户，说明房间里已经有同名用户，踢出自己
-		// If newly joined, means there's already a user with same name, kick self
-		if (isNewlyJoined && !rd.duplicateHandled) {
+		console.log('[Room] Duplicate username detected:', normalizedUser.userName, 
+			'myRole:', myRole, 'otherRole:', otherRole,
+			'isNewlyJoined:', isNewlyJoined, 'duplicateHandled:', rd.duplicateHandled);
+		
+		// 决定谁应该被踢出：
+		// 1. 如果我是管理员，对方是普通用户 -> 不踢出自己（对方会被踢出）
+		// 2. 如果我是普通用户，对方是管理员 -> 踢出自己
+		// 3. 如果角色相同 -> 后来者被踢出
+		// Decide who should be kicked:
+		// 1. If I'm admin and other is user -> don't kick self (other will be kicked)
+		// 2. If I'm user and other is admin -> kick self
+		// 3. If same role -> later joiner gets kicked
+		
+		let shouldKickSelf = false;
+		
+		if (myRole === 'admin' && otherRole !== 'admin') {
+			// 我是管理员，对方是普通用户，不踢出自己
+			console.log('[Room] I am admin, other is user, not kicking self');
+			shouldKickSelf = false;
+		} else if (myRole !== 'admin' && otherRole === 'admin') {
+			// 我是普通用户，对方是管理员，踢出自己
+			console.log('[Room] I am user, other is admin, kicking self');
+			shouldKickSelf = true;
+		} else {
+			// 角色相同，后来者被踢出
+			shouldKickSelf = isNewlyJoined;
+		}
+		
+		if (shouldKickSelf && !rd.duplicateHandled) {
 			// 标记已处理，避免重复处理
 			rd.duplicateHandled = true;
 			
@@ -371,7 +398,10 @@ export function handleClientSecured(idx, user) {
 			}
 			
 			// 提示用户
-			alert(t('ui.username_taken', '此用户名已在房间中使用，请更换用户名'));
+			const message = (myRole !== 'admin' && otherRole === 'admin') 
+				? t('ui.username_taken_by_admin', '管理员使用了此用户名，您已被踢出房间')
+				: t('ui.username_taken', '此用户名已在房间中使用，请更换用户名');
+			alert(message);
 			return;
 		}
 	}
