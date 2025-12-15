@@ -568,6 +568,41 @@ export function setupMobileUIHandlers() {
 	})
 }
 
+// 刷新成员列表（重新请求服务器获取最新列表）
+// Refresh member list (re-request from server to get latest list)
+export function refreshMemberList() {
+	const rd = roomsData[activeRoomIndex];
+	if (!rd || !rd.chat) {
+		console.warn('[UI] No active room or chat instance');
+		return;
+	}
+	
+	// 显示刷新中状态
+	const refreshBtn = document.querySelector('.member-refresh-btn');
+	if (refreshBtn) {
+		refreshBtn.classList.add('refreshing');
+		refreshBtn.disabled = true;
+	}
+	
+	// 检查连接状态
+	if (rd.chat.isClosed()) {
+		console.log('[UI] Connection closed, reconnecting...');
+		rd.chat.connect();
+	} else if (rd.chat.isOpen()) {
+		// 发送 ping 确认连接，服务器会返回最新的用户列表
+		rd.chat.sendMessage('ping');
+	}
+	
+	// 强制重新渲染
+	setTimeout(() => {
+		renderUserList(true);
+		if (refreshBtn) {
+			refreshBtn.classList.remove('refreshing');
+			refreshBtn.disabled = false;
+		}
+	}, 500);
+}
+
 // Render the user/member list - 单聊模式
 // 渲染用户/成员列表 - 类似微信的单聊列表
 // 普通用户只能看到管理员，管理员能看到所有用户
@@ -583,21 +618,32 @@ export function renderUserList(updateHeader = false) {
 	// 在 P2P 架构中，userList 只包含其他客户端，不包含自己
 	// In P2P architecture, userList only contains other clients, not self
 	// 所以直接使用 userList 作为 others
-	let others = [...rd.userList];
+	let others = [...(rd.userList || [])];
 	
 	if (myRole !== 'admin') {
 		// 普通用户只能看到管理员
 		others = others.filter(u => u.role === 'admin');
 	}
 	
-	// 只有管理员才显示在线用户数量
-	// Only admin can see online user count
-	if (myRole === 'admin') {
-		const onlineCount = others.length;
-		const headerTip = document.createElement('div');
-		headerTip.className = 'member-tip';
-		headerTip.innerHTML = `<span>${t('ui.online_users', '在线用户')}: <strong>${onlineCount}</strong></span>`;
-		userListEl.appendChild(headerTip);
+	// 添加刷新按钮
+	// Add refresh button
+	const refreshHeader = document.createElement('div');
+	refreshHeader.className = 'member-refresh-header';
+	const onlineText = myRole === 'admin' 
+		? `${t('ui.online_users', '在线用户')}: <strong>${others.length}</strong>`
+		: `${t('ui.customer_service', '客服')}`;
+	refreshHeader.innerHTML = `
+		<span class="member-count-text">${onlineText}</span>
+		<button class="member-refresh-btn" title="${t('ui.refresh_list', '刷新列表')}">🔄</button>
+	`;
+	userListEl.appendChild(refreshHeader);
+	
+	// 刷新按钮点击事件
+	const refreshBtn = refreshHeader.querySelector('.member-refresh-btn');
+	if (refreshBtn) {
+		refreshBtn.onclick = () => {
+			refreshMemberList();
+		};
 	}
 	
 	if (others.length === 0) {

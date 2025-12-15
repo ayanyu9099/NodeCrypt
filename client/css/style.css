@@ -3075,3 +3075,57 @@ h2{
 		height: 6px;
 	}
 }
+
+
+/* Member list refresh header */
+/* 成员列表刷新头部 */
+.member-refresh-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 10px 15px;
+	background: #f8f9fa;
+	border-bottom: 1px solid #eee;
+	font-size: 13px;
+	color: #666;
+}
+
+.member-count-text {
+	flex: 1;
+}
+
+.member-count-text strong {
+	color: #333;
+}
+
+.member-refresh-btn {
+	background: none;
+	border: none;
+	font-size: 16px;
+	cursor: pointer;
+	padding: 4px 8px;
+	border-radius: 4px;
+	transition: background-color 0.2s ease, transform 0.3s ease;
+}
+
+.member-refresh-btn:hover {
+	background: #e9ecef;
+}
+
+.member-refresh-btn:active {
+	transform: rotate(180deg);
+}
+
+.member-refresh-btn.refreshing {
+	animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+	from { transform: rotate(0deg); }
+	to { transform: rotate(360deg); }
+}
+
+.member-refresh-btn:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
