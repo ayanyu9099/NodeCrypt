@@ -1,0 +1,21 @@
+{
+  "name": "加密聊天",
+  "short_name": "加密聊天",
+  "description": "端到端加密的安全聊天应用",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#357ae8",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/assets/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["social", "communication"],
+  "lang": "zh-CN",
+  "dir": "ltr"
+}
