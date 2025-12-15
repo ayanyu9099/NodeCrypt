@@ -360,6 +360,15 @@ export function handleClientSecured(idx, user) {
 			if (loginContainer) loginContainer.style.display = '';
 			const chatContainer = $id('chat-container');
 			if (chatContainer) chatContainer.style.display = 'none';
+			
+			// 重置登录按钮状态
+			// Reset login button state
+			const loginBtn = document.querySelector('#login-form .login-btn');
+			if (loginBtn) {
+				loginBtn.disabled = false;
+				loginBtn.textContent = t('ui.enter', '加入房间');
+			}
+			
 			// 提示用户
 			alert(t('ui.username_taken', '此用户名已在房间中使用，请更换用户名'));
 			return;
