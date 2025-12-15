@@ -124,6 +124,7 @@ export function joinRoom(userName, roomName, password, modal = null, onResult, u
 	newRd.myUserName = userName;
 	newRd.password = password;
 	newRd.myRole = userRole;  // 保存用户角色
+	newRd.joinTime = Date.now();  // 记录加入时间，用于用户名唯一性检查
 	roomsData.push(newRd);
 	const idx = roomsData.length - 1;
 	switchRoom(idx);
@@ -338,13 +339,21 @@ export function handleClientSecured(idx, user) {
 	// 检查用户名是否与自己相同（用户名唯一性检查）
 	// Check if username is same as mine (username uniqueness check)
 	if (normalizedUser.userName && normalizedUser.userName === rd.myUserName) {
-		console.log('[Room] Duplicate username detected:', normalizedUser.userName);
-		// 如果是自己刚加入（initCount < 2），而房间里已经有同名用户，则断开连接
-		// If I just joined (initCount < 2) and there's already a user with same name, disconnect
-		if ((rd.initCount || 0) < 2) {
+		// 判断是否是新加入的用户（5秒内加入的）
+		// Check if this is a newly joined user (joined within 5 seconds)
+		const isNewlyJoined = rd.joinTime && (Date.now() - rd.joinTime < 5000);
+		
+		console.log('[Room] Duplicate username detected:', normalizedUser.userName, 
+			'isNewlyJoined:', isNewlyJoined, 'duplicateHandled:', rd.duplicateHandled,
+			'timeSinceJoin:', rd.joinTime ? (Date.now() - rd.joinTime) : 'N/A');
+		
+		// 如果是新加入的用户，说明房间里已经有同名用户，踢出自己
+		// If newly joined, means there's already a user with same name, kick self
+		if (isNewlyJoined && !rd.duplicateHandled) {
 			// 标记已处理，避免重复处理
-			if (rd.duplicateHandled) return;
 			rd.duplicateHandled = true;
+			
+			console.log('[Room] Kicking duplicate user...');
 			
 			// 断开连接并提示
 			if (rd.chat) {
