@@ -249,6 +249,34 @@ export function handleClientList(idx, list, selfId) {
 		.catch(e => console.error('Failed to store client IP mapping:', e));
 	}
 	
+	// 检查并修复 privateChatTargetId（重连后 clientId 可能变化）
+	// Check and fix privateChatTargetId (clientId may change after reconnect)
+	if (rd.privateChatTargetId && rd.privateChatTargetName) {
+		// 检查当前目标是否还在用户列表中
+		const targetExists = rd.userList.some(u => u.clientId === rd.privateChatTargetId);
+		if (!targetExists) {
+			// 尝试通过用户名找到新的 clientId
+			const targetByName = rd.userList.find(u => 
+				(u.userName || u.username) === rd.privateChatTargetName
+			);
+			if (targetByName) {
+				console.log('[Room] Fixing privateChatTargetId after reconnect:', 
+					rd.privateChatTargetId, '->', targetByName.clientId);
+				// 迁移聊天记录到新的 clientId
+				if (rd.privateChats[rd.privateChatTargetId]) {
+					rd.privateChats[targetByName.clientId] = rd.privateChats[rd.privateChatTargetId];
+					delete rd.privateChats[rd.privateChatTargetId];
+				}
+				rd.privateChatTargetId = targetByName.clientId;
+			} else {
+				// 目标用户已离线，清除私聊状态
+				console.log('[Room] Private chat target offline, clearing:', rd.privateChatTargetName);
+				rd.privateChatTargetId = null;
+				rd.privateChatTargetName = null;
+			}
+		}
+	}
+	
 	if (activeRoomIndex === idx) {
 		renderUserList(false);
 		renderMainHeader()
