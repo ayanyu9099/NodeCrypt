@@ -64,6 +64,7 @@ const LANGUAGES = {
 			'ui.select_user_to_chat': 'Select a user to start chatting',
 			'ui.image': 'Image',
 			'ui.file': 'File',
+			'ui.username_taken': 'This username is already in use in the room. Please choose a different username.',
 			
 			// Admin features
 			'admin.manage_user': 'Manage User',
@@ -259,6 +260,7 @@ const LANGUAGES = {
 			'ui.select_user_to_chat': '选择一个用户开始聊天',
 			'ui.image': '图片',
 			'ui.file': '文件',
+			'ui.username_taken': '此用户名已在房间中使用，请更换用户名',
 			
 			// Admin features
 			'admin.manage_user': '管理用户',

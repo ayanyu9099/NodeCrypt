@@ -335,6 +335,37 @@ export function handleClientSecured(idx, user) {
 		role: user.role || 'user'
 	};
 	
+	// 检查用户名是否与自己相同（用户名唯一性检查）
+	// Check if username is same as mine (username uniqueness check)
+	if (normalizedUser.userName && normalizedUser.userName === rd.myUserName) {
+		console.log('[Room] Duplicate username detected:', normalizedUser.userName);
+		// 如果是自己刚加入（initCount < 2），而房间里已经有同名用户，则断开连接
+		// If I just joined (initCount < 2) and there's already a user with same name, disconnect
+		if ((rd.initCount || 0) < 2) {
+			// 标记已处理，避免重复处理
+			if (rd.duplicateHandled) return;
+			rd.duplicateHandled = true;
+			
+			// 断开连接并提示
+			if (rd.chat) {
+				rd.chat.destruct();
+			}
+			// 从房间列表中移除
+			const roomIdx = roomsData.findIndex(r => r === rd);
+			if (roomIdx !== -1) {
+				roomsData.splice(roomIdx, 1);
+			}
+			// 显示登录界面
+			const loginContainer = $id('login-container');
+			if (loginContainer) loginContainer.style.display = '';
+			const chatContainer = $id('chat-container');
+			if (chatContainer) chatContainer.style.display = 'none';
+			// 提示用户
+			alert(t('ui.username_taken', '此用户名已在房间中使用，请更换用户名'));
+			return;
+		}
+	}
+	
 	rd.userMap[normalizedUser.clientId] = normalizedUser;
 	const existingUserIndex = rd.userList.findIndex(u => u.clientId === normalizedUser.clientId);
 	if (existingUserIndex === -1) {
