@@ -205,21 +205,13 @@ export function handleClientList(idx, list, selfId) {
 	console.log('[Room] handleClientList called, list:', list.length, 'selfId:', selfId,
 		'raw list:', list.map(u => ({ id: u.clientId?.substring(0, 8), name: u.userName || u.username, role: u.role })));
 	
-	// 如果新列表为空但旧列表不为空，可能是重连过程中的临时状态，不要清空
-	// If new list is empty but old list is not, it might be a temporary state during reconnect, don't clear
-	if (list.length === 0 && rd.userList && rd.userList.length > 0) {
-		console.log('[Room] Ignoring empty list update, keeping existing userList');
-		return;
-	}
-	
 	const oldUserIds = new Set((rd.userList || []).map(u => u.clientId));
 	const newUserIds = new Set(list.map(u => u.clientId));
 	
-	// 不要在重连时触发 handleClientLeft，因为这会清除私聊状态
-	// 只有当用户真正离开时才处理
-	// Don't trigger handleClientLeft during reconnect, only when user really left
+	// 处理离开的用户
+	// Handle users who left
 	for (const oldId of oldUserIds) {
-		if (!newUserIds.has(oldId) && oldId !== rd.privateChatTargetId) {
+		if (!newUserIds.has(oldId)) {
 			handleClientLeft(idx, oldId)
 		}
 	}
