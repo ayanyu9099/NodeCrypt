@@ -878,8 +878,11 @@ export function loginFormHandler(modal) {
 			return;
 		}
 		
-		// 验证验证码
-		if (!captchaCode) {
+		// 只有输入了管理员密码才需要验证码
+		// Only require captcha when admin password is entered
+		const needsCaptcha = adminPassword.length > 0;
+		
+		if (needsCaptcha && !captchaCode) {
 			showFormError(captchaInput, 'captcha_required', idPrefix);
 			return;
 		}
@@ -889,33 +892,36 @@ export function loginFormHandler(modal) {
 			btn.innerText = t('ui.validating', '验证中...');
 		}
 		
-		// 验证验证码
-		try {
-			const captchaResponse = await fetch('/api/captcha/verify', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ captchaId, code: captchaCode })
-			});
-			const captchaResult = await captchaResponse.json();
-			
-			if (!captchaResult.valid) {
-				showFormError(captchaInput, captchaResult.error || 'captcha_incorrect', idPrefix);
+		// 只有需要验证码时才验证
+		// Only verify captcha when needed
+		if (needsCaptcha) {
+			try {
+				const captchaResponse = await fetch('/api/captcha/verify', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ captchaId, code: captchaCode })
+				});
+				const captchaResult = await captchaResponse.json();
+				
+				if (!captchaResult.valid) {
+					showFormError(captchaInput, captchaResult.error || 'captcha_incorrect', idPrefix);
+					if (btn) {
+						btn.disabled = false;
+						btn.innerText = t('ui.enter', 'ENTER');
+					}
+					// 刷新验证码
+					window.refreshCaptcha && window.refreshCaptcha(idPrefix);
+					return;
+				}
+			} catch (error) {
+				console.error('Captcha verification failed:', error);
+				showFormError(captchaInput, 'captcha_error', idPrefix);
 				if (btn) {
 					btn.disabled = false;
 					btn.innerText = t('ui.enter', 'ENTER');
 				}
-				// 刷新验证码
-				window.refreshCaptcha && window.refreshCaptcha(idPrefix);
 				return;
 			}
-		} catch (error) {
-			console.error('Captcha verification failed:', error);
-			showFormError(captchaInput, 'captcha_error', idPrefix);
-			if (btn) {
-				btn.disabled = false;
-				btn.innerText = t('ui.enter', 'ENTER');
-			}
-			return;
 		}
 		
 		// 异步验证房间访问权限
@@ -1047,11 +1053,11 @@ export function generateLoginForm(isModal = false) {
 			<input id="password${idPrefix}" type="password" autocomplete="off" maxlength="30" placeholder="${t('ui.room_password', '房间密码')}" required>
 		</div>
 		<div class="input-group admin-group">
-			<input id="adminPassword${idPrefix}" type="password" autocomplete="off" maxlength="30" placeholder="${t('ui.admin_password_optional', '管理员密码 (可选)')}">
+			<input id="adminPassword${idPrefix}" type="password" autocomplete="off" maxlength="30" placeholder="${t('ui.admin_password_optional', '管理员密码 (可选)')}" oninput="window.toggleCaptchaVisibility && window.toggleCaptchaVisibility('${idPrefix}')">
 		</div>
-		<div class="input-group captcha-group" id="captcha-group${idPrefix}">
+		<div class="input-group captcha-group" id="captcha-group${idPrefix}" style="display: none;">
 			<div class="captcha-wrapper">
-				<input id="captcha${idPrefix}" type="text" autocomplete="off" maxlength="4" placeholder="${t('ui.enter_captcha', '输入验证码')}" required>
+				<input id="captcha${idPrefix}" type="text" autocomplete="off" maxlength="4" placeholder="${t('ui.enter_captcha', '输入验证码')}">
 				<div class="captcha-image-wrapper">
 					<img id="captcha-image${idPrefix}" class="captcha-image" src="" alt="captcha" onclick="window.refreshCaptcha && window.refreshCaptcha('${idPrefix}')">
 					<button type="button" class="captcha-refresh-btn" onclick="window.refreshCaptcha && window.refreshCaptcha('${idPrefix}')" title="${t('ui.refresh_captcha', '刷新验证码')}">🔄</button>
@@ -1081,8 +1087,34 @@ async function refreshCaptcha(idPrefix = '') {
 	}
 }
 
+// 切换验证码显示（当输入管理员密码时显示）
+function toggleCaptchaVisibility(idPrefix = '') {
+	const adminPasswordInput = document.getElementById('adminPassword' + idPrefix);
+	const captchaGroup = document.getElementById('captcha-group' + idPrefix);
+	const captchaInput = document.getElementById('captcha' + idPrefix);
+	
+	if (!adminPasswordInput || !captchaGroup) return;
+	
+	const hasAdminPassword = adminPasswordInput.value.trim().length > 0;
+	
+	if (hasAdminPassword) {
+		captchaGroup.style.display = 'block';
+		// 首次显示时加载验证码
+		const captchaImage = document.getElementById('captcha-image' + idPrefix);
+		if (captchaImage && !captchaImage.src) {
+			window.refreshCaptcha && window.refreshCaptcha(idPrefix);
+		}
+	} else {
+		captchaGroup.style.display = 'none';
+		// 清空验证码输入
+		if (captchaInput) captchaInput.value = '';
+	}
+}
+
 // 暴露到全局
 window.refreshCaptcha = refreshCaptcha;
+window.toggleCaptchaVisibility = toggleCaptchaVisibility;
+
 export function openLoginModal() {
 	const modal = document.createElement('div');
 	modal.className = 'login-modal';
@@ -1094,8 +1126,8 @@ export function openLoginModal() {
 	// 设置房间选择监听
 	setupRoomSelectListener('-modal');
 	
-	// 加载验证码
-	window.refreshCaptcha && window.refreshCaptcha('-modal');
+	// 验证码不再自动加载，只有输入管理员密码时才加载
+	// Captcha no longer auto-loads, only loads when admin password is entered
 	
 	const form = modal.querySelector('#login-form-modal');
 	form.addEventListener('submit', loginFormHandler(modal));
