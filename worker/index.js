@@ -73,6 +73,19 @@ export default {
         return new Response(null, { headers: corsHeaders });
       }
       
+      // 获取系统配置
+      if (url.pathname === '/api/config') {
+        // ALLOW_JOIN_ROOM 环境变量控制是否允许用户加入房间
+        // 默认为 true（允许），设置为 'false' 时禁用
+        const allowJoinRoom = env.ALLOW_JOIN_ROOM !== 'false';
+        
+        return new Response(JSON.stringify({ 
+          allowJoinRoom: allowJoinRoom
+        }), { 
+          headers: corsHeaders 
+        });
+      }
+      
       // 获取房间配置（不包含密码）
       if (url.pathname === '/api/rooms') {
         const rooms = getRoomsConfig(env);
