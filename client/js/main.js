@@ -178,6 +178,17 @@ window.addEventListener('DOMContentLoaded', async () => {
 	const joinBtn = $('.join-room'); // 加入房间按钮 / Join room button
 	if (joinBtn) {
 		joinBtn.onclick = openLoginModal; // 点击打开登录窗口 / Click to open login modal
+		
+		// 检查是否允许加入房间 / Check if join room is allowed
+		try {
+			const configRes = await fetch('/api/config');
+			const config = await configRes.json();
+			if (config.allowJoinRoom === false) {
+				joinBtn.style.display = 'none'; // 隐藏加入房间按钮
+			}
+		} catch (e) {
+			console.warn('Failed to fetch config:', e);
+		}
 	}
 	// 阻止用户输入用户名、房间名和密码时输入空格
 	// Prevent space input for username, room name, and password fields
