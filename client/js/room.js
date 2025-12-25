@@ -154,11 +154,10 @@ export function joinRoom(userName, roomName, password, modal = null, onResult, u
 		onServerSecured: () => {
 			setConnectionStatus('connected');
 			
-			// 更新 joinTime，用于重复用户名检测（重连时也会更新）
-			// Update joinTime for duplicate username detection (also updated on reconnect)
-			if (roomsData[idx]) {
-				roomsData[idx].joinTime = Date.now();
-			}
+			// 注意：不更新 joinTime，保持原来的加入时间
+			// 这样重连用户会被识别为先加入者
+			// Note: Don't update joinTime, keep original join time
+			// This way reconnecting user will be identified as earlier joiner
 			
 			if (modal) modal.remove();
 			else {
@@ -180,7 +179,7 @@ export function joinRoom(userName, roomName, password, modal = null, onResult, u
 		onClientMessage: (msg) => handleClientMessage(idx, msg)
 	};
 	const chatInst = new window.NodeCrypt(window.config, callbacks);
-	chatInst.setCredentials(userName, roomName, password, userRole);  // 传递角色
+	chatInst.setCredentials(userName, roomName, password, userRole, newRd.joinTime);  // 传递角色和加入时间
 	chatInst.connect();
 	roomsData[idx].chat = chatInst
 }
@@ -229,7 +228,8 @@ export function handleClientList(idx, list, selfId) {
 		clientId: u.clientId,
 		userName: u.userName || u.username || u.name || '',
 		username: u.userName || u.username || u.name || '',
-		role: u.role || 'user'
+		role: u.role || 'user',
+		joinTime: u.joinTime || 0
 	}));
 	
 	console.log('[Room] New user list:', newUserList.map(u => ({ id: u.clientId, name: u.userName, role: u.role })));
@@ -350,7 +350,8 @@ export function handleClientSecured(idx, user) {
 		clientId: user.clientId,
 		userName: user.userName || user.username || user.name || '',
 		username: user.userName || user.username || user.name || '',
-		role: user.role || 'user'
+		role: user.role || 'user',
+		joinTime: user.joinTime || 0
 	};
 	
 	// 检查用户名是否与自己相同（用户名唯一性检查）
@@ -360,19 +361,22 @@ export function handleClientSecured(idx, user) {
 		// Role priority: admin > user
 		const myRole = rd.myRole || 'user';
 		const otherRole = normalizedUser.role || 'user';
+		const myJoinTime = rd.joinTime || 0;
+		const otherJoinTime = normalizedUser.joinTime || 0;
 		
 		console.log('[Room] Duplicate username detected:', normalizedUser.userName, 
 			'myRole:', myRole, 'otherRole:', otherRole,
-			'myJoinTime:', rd.joinTime, 'duplicateHandled:', rd.duplicateHandled);
+			'myJoinTime:', myJoinTime, 'otherJoinTime:', otherJoinTime,
+			'duplicateHandled:', rd.duplicateHandled);
 		
 		// 决定谁应该被踢出：
 		// 1. 如果我是管理员，对方是普通用户 -> 不踢出自己（对方会被踢出）
 		// 2. 如果我是普通用户，对方是管理员 -> 踢出自己
-		// 3. 如果角色相同 -> 后加入者被踢出（比较 joinTime）
+		// 3. 如果角色相同 -> 后加入者被踢出（比较 joinTime，时间大的是后来者）
 		// Decide who should be kicked:
 		// 1. If I'm admin and other is user -> don't kick self (other will be kicked)
 		// 2. If I'm user and other is admin -> kick self
-		// 3. If same role -> later joiner gets kicked (compare joinTime)
+		// 3. If same role -> later joiner gets kicked (compare joinTime, larger time = later joiner)
 		
 		let shouldKickSelf = false;
 		
@@ -385,25 +389,15 @@ export function handleClientSecured(idx, user) {
 			console.log('[Room] I am user, other is admin, kicking self');
 			shouldKickSelf = true;
 		} else {
-			// 角色相同时，需要确定谁是后来者
-			// 由于无法获取对方的 joinTime，使用以下策略：
-			// - 如果我的 joinTime 在最近 10 秒内，说明我可能是重连的，应该踢出自己
-			// - 否则，假设对方是后来者，不踢出自己
-			// When roles are same, need to determine who joined later
-			// Since we can't get other's joinTime, use this strategy:
-			// - If my joinTime is within last 10 seconds, I might be reconnecting, kick self
-			// - Otherwise, assume other is later joiner, don't kick self
-			const timeSinceJoin = Date.now() - (rd.joinTime || 0);
-			const isRecentJoin = timeSinceJoin < 10000; // 10 秒内
-			
-			// 如果我是最近加入的（可能是重连），而对方已经在线，我应该退出
-			// If I joined recently (might be reconnecting) and other is already online, I should exit
-			if (isRecentJoin) {
-				console.log('[Room] I joined recently, might be duplicate, kicking self');
+			// 角色相同时，比较 joinTime，后加入者被踢出
+			// When roles are same, compare joinTime, later joiner gets kicked
+			if (myJoinTime > otherJoinTime) {
+				// 我的 joinTime 更大，说明我是后来者，踢出自己
+				console.log('[Room] I joined later (myJoinTime > otherJoinTime), kicking self');
 				shouldKickSelf = true;
 			} else {
-				// 我已经在线很久了，对方是后来者，不踢出自己
-				console.log('[Room] I have been online for a while, other is later joiner');
+				// 对方的 joinTime 更大或相等，对方是后来者，不踢出自己
+				console.log('[Room] Other joined later or same time, not kicking self');
 				shouldKickSelf = false;
 			}
 		}

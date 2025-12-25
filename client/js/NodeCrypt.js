@@ -72,16 +72,17 @@ class NodeCrypt {
 		this.decryptClientMessage = this.decryptClientMessage.bind(this)
 	}
 
-	// Set user credentials (username, channel, password, role)
-	// 设置用户凭证（用户名、频道、密码、角色）
-	setCredentials(username, channel, password, role = 'user') {
+	// Set user credentials (username, channel, password, role, joinTime)
+	// 设置用户凭证（用户名、频道、密码、角色、加入时间）
+	setCredentials(username, channel, password, role = 'user', joinTime = Date.now()) {
 		this.logEvent('setCredentials');
 		try {
 			this.credentials = {
 				username: username,
 				channel: sha256(channel),
 				password: sha256(password),
-				role: role  // 用户角色: 'admin' 或 'user'
+				role: role,  // 用户角色: 'admin' 或 'user'
+				joinTime: joinTime  // 加入时间，用于用户名冲突检测
 			}
 		} catch (error) {
 			this.logEvent('setCredentials', error, 'error');
@@ -272,7 +273,8 @@ class NodeCrypt {
 						clients.push({
 							clientId: clientId,
 							username: this.channel[clientId].username,
-							role: this.channel[clientId].role || 'user'  // 包含角色信息
+							role: this.channel[clientId].role || 'user',  // 包含角色信息
+							joinTime: this.channel[clientId].joinTime || 0  // 包含加入时间
 						})
 					}
 				}
@@ -307,7 +309,8 @@ class NodeCrypt {
 					p: this.encryptClientMessage({
 						a: 'u',
 						p: this.credentials.username,
-						r: this.credentials.role  // 传递角色信息
+						r: this.credentials.role,  // 传递角色信息
+						j: this.credentials.joinTime || Date.now()  // 传递加入时间
 					}, this.channel[serverDecrypted.c].shared),
 					c: serverDecrypted.c
 				}, this.serverShared))
@@ -325,12 +328,14 @@ class NodeCrypt {
 			if (clientDecrypted.a === 'u' && this.isString(clientDecrypted.p) && clientDecrypted.p.match(/\S+/) && !this.channel[serverDecrypted.c].username) {
 				this.channel[serverDecrypted.c].username = clientDecrypted.p.replace(/^\s+/, '').replace(/\s+$/, '');
 				this.channel[serverDecrypted.c].role = clientDecrypted.r || 'user';  // 保存角色信息
+				this.channel[serverDecrypted.c].joinTime = clientDecrypted.j || 0;  // 保存加入时间
 				if (this.callbacks.onClientSecured) {
 					try {
 						this.callbacks.onClientSecured({
 							clientId: serverDecrypted.c,
 							username: this.channel[serverDecrypted.c].username,
-							role: this.channel[serverDecrypted.c].role  // 传递角色信息
+							role: this.channel[serverDecrypted.c].role,  // 传递角色信息
+							joinTime: this.channel[serverDecrypted.c].joinTime  // 传递加入时间
 						})
 					} catch (error) {
 						this.logEvent('onMessage-client-secured-callback', error, 'error')
@@ -345,7 +350,8 @@ class NodeCrypt {
 							clients.push({
 								clientId: cid,
 								username: this.channel[cid].username,
-								role: this.channel[cid].role || 'user'
+								role: this.channel[cid].role || 'user',
+								joinTime: this.channel[cid].joinTime || 0
 							})
 						}
 					}
