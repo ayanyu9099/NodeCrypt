@@ -284,6 +284,13 @@ export function handleClientList(idx, list, selfId) {
 					delete rd.privateChats[oldId];
 				}
 				rd.privateChatTargetId = targetByName.clientId;
+				
+				// 重新渲染聊天区域和输入框，恢复私聊状态
+				// Re-render chat area and input to restore private chat state
+				if (activeRoomIndex === idx) {
+					renderChatArea();
+					updateChatInputStyle();
+				}
 			} else {
 				// 目标用户可能还没重连，暂时保留状态，不清除
 				// Target user may not have reconnected yet, keep state temporarily
@@ -443,6 +450,29 @@ export function handleClientSecured(idx, user) {
 		// Regular user: auto open chat with admin when admin comes online
 		if (rd.myRole !== 'admin' && normalizedUser.role === 'admin' && !rd.privateChatTargetId) {
 			togglePrivateChat(normalizedUser.clientId, normalizedUser.userName || normalizedUser.username);
+		}
+	}
+	
+	// 检查是否需要恢复与该用户的私聊（重连后 clientId 变化的情况）
+	// Check if we need to restore private chat with this user (clientId changed after reconnect)
+	if (rd.privateChatTargetName && normalizedUser.userName === rd.privateChatTargetName) {
+		const currentTargetExists = rd.userList.some(u => u.clientId === rd.privateChatTargetId);
+		if (!currentTargetExists && normalizedUser.clientId !== rd.privateChatTargetId) {
+			console.log('[Room] Restoring private chat after reconnect:', 
+				rd.privateChatTargetId, '->', normalizedUser.clientId);
+			const oldId = rd.privateChatTargetId;
+			// 迁移聊天记录到新的 clientId
+			if (oldId && rd.privateChats[oldId]) {
+				rd.privateChats[normalizedUser.clientId] = rd.privateChats[oldId];
+				delete rd.privateChats[oldId];
+			}
+			rd.privateChatTargetId = normalizedUser.clientId;
+			
+			// 重新渲染聊天区域和输入框
+			if (activeRoomIndex === idx) {
+				renderChatArea();
+				updateChatInputStyle();
+			}
 		}
 	}
 }
