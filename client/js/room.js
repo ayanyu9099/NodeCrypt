@@ -159,10 +159,11 @@ export function joinRoom(userName, roomName, password, modal = null, onResult, u
 		onServerSecured: () => {
 			setConnectionStatus('connected');
 			
-			// 清除重连标志（首次连接时 isReconnecting 为 undefined/false）
-			// Clear reconnecting flag (isReconnecting is undefined/false on first connect)
-			// 注意：不要在这里清除，因为需要在 handleClientSecured 中使用
-			// Note: Don't clear here, need to use it in handleClientSecured
+			// 记录本次连接时间，用于重复用户名检测
+			// Record connection time for duplicate username detection
+			if (roomsData[idx]) {
+				roomsData[idx].connectionTime = Date.now();
+			}
 			
 			if (modal) modal.remove();
 			else {
@@ -340,10 +341,6 @@ export function handleClientList(idx, list, selfId) {
 			togglePrivateChat(firstAdmin.clientId, firstAdmin.userName || firstAdmin.username);
 		}
 	}
-	
-	// 清除重连标志（在所有用户名检查完成后）
-	// Clear reconnecting flag (after all username checks are done)
-	rd.isReconnecting = false;
 }
 
 // Handle client secured event
@@ -369,22 +366,29 @@ export function handleClientSecured(idx, user) {
 		const myRole = rd.myRole || 'user';
 		const otherRole = normalizedUser.role || 'user';
 		
+		// 计算本次连接后经过的时间
+		const timeSinceConnection = Date.now() - (rd.connectionTime || 0);
+		
 		console.log('[Room] Duplicate username detected:', normalizedUser.userName, 
 			'myRole:', myRole, 'otherRole:', otherRole,
-			'isReconnecting:', rd.isReconnecting, 'duplicateHandled:', rd.duplicateHandled);
+			'isReconnecting:', rd.isReconnecting, 
+			'timeSinceConnection:', timeSinceConnection,
+			'duplicateHandled:', rd.duplicateHandled);
 		
 		// 决定谁应该被踢出：
 		// 1. 如果我是管理员，对方是普通用户 -> 不踢出自己（对方会被踢出）
 		// 2. 如果我是普通用户，对方是管理员 -> 踢出自己
 		// 3. 如果角色相同：
-		//    - 如果我是重连的 -> 踢出自己（对方已经占用了用户名）
-		//    - 如果我不是重连的 -> 对方是后来者，踢出对方（对方会自己检测到并退出）
+		//    - 如果我是重连的（isReconnecting=true）-> 踢出自己
+		//    - 如果我的连接时间在 30 秒内 -> 踢出自己（我是后来者）
+		//    - 否则 -> 对方是后来者，不踢出自己
 		// Decide who should be kicked:
 		// 1. If I'm admin and other is user -> don't kick self (other will be kicked)
 		// 2. If I'm user and other is admin -> kick self
 		// 3. If same role:
-		//    - If I'm reconnecting -> kick self (other already took the username)
-		//    - If I'm not reconnecting -> other is later joiner, they will kick themselves
+		//    - If I'm reconnecting (isReconnecting=true) -> kick self
+		//    - If my connection time is within 30 seconds -> kick self (I'm later joiner)
+		//    - Otherwise -> other is later joiner, don't kick self
 		
 		let shouldKickSelf = false;
 		
@@ -403,14 +407,13 @@ export function handleClientSecured(idx, user) {
 				// 我是重连的，对方已经在线，我应该退出
 				console.log('[Room] I am reconnecting, other already online, kicking self');
 				shouldKickSelf = true;
-			} else if (!rd.isInitialized) {
-				// 我还在初始化中（首次连接），说明对方比我先在线，我应该退出
-				console.log('[Room] I am still initializing, other was here first, kicking self');
+			} else if (timeSinceConnection < 30000) {
+				// 我的连接时间在 30 秒内，说明我是后来者，应该退出
+				console.log('[Room] I connected recently (' + timeSinceConnection + 'ms ago), kicking self');
 				shouldKickSelf = true;
 			} else {
-				// 我已经在线且不是重连，对方是后来者，不踢出自己
-				// 对方会在他的客户端检测到重复并退出
-				console.log('[Room] I am online and not reconnecting, other is later joiner');
+				// 我已经在线超过 30 秒，对方是后来者，不踢出自己
+				console.log('[Room] I have been online for ' + timeSinceConnection + 'ms, other is later joiner');
 				shouldKickSelf = false;
 			}
 		}
