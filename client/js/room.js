@@ -396,26 +396,28 @@ export function handleClientSecured(idx, user) {
 			console.log('[Room] I am user, other is admin, kicking self');
 			shouldKickSelf = true;
 		} else {
-			// 角色相同时
-			// When roles are same
+			// 角色相同时：后加入的用户应该被踢出
+			// When roles are same: the user who joined later should be kicked
+			// 
+			// 这里的逻辑是：当收到 handleClientSecured 事件时，说明有新用户加入
+			// 如果新用户的用户名和我相同，那么：
+			// - 如果我是重连的（isReconnecting=true），说明我是后来的，我应该退出
+			// - 否则，对方是后来的，对方应该退出（我不需要做任何事，对方会自己退出）
+			// 
+			// The logic here: when handleClientSecured event is received, a new user joined
+			// If the new user has the same username as me:
+			// - If I'm reconnecting (isReconnecting=true), I'm the latecomer, I should exit
+			// - Otherwise, the other is the latecomer, they should exit (I don't need to do anything)
+			
 			if (rd.isReconnecting) {
 				// 我是重连的，对方已经在线，我应该退出
 				console.log('[Room] I am reconnecting, other already online, kicking self');
 				shouldKickSelf = true;
 			} else {
-				// 比较 clientId，字典序较大的被踢出
-				// 这样两边的判断结果是一致的，只有一个会被踢出
-				// Compare clientId, larger one gets kicked
-				// This ensures both sides make the same decision, only one gets kicked
-				const myId = rd.myId || '';
-				const otherId = normalizedUser.clientId || '';
-				if (myId > otherId) {
-					console.log('[Room] My clientId is larger, kicking self');
-					shouldKickSelf = true;
-				} else {
-					console.log('[Room] My clientId is smaller, not kicking self');
-					shouldKickSelf = false;
-				}
+				// 我先在线，对方是后来的，我不需要退出
+				// 对方会在他们那边收到我的 clientSecured 事件，然后他们会退出
+				console.log('[Room] I was here first, other is the latecomer, not kicking self');
+				shouldKickSelf = false;
 			}
 		}
 		
