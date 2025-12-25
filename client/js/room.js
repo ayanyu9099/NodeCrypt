@@ -366,29 +366,24 @@ export function handleClientSecured(idx, user) {
 		const myRole = rd.myRole || 'user';
 		const otherRole = normalizedUser.role || 'user';
 		
-		// 计算本次连接后经过的时间
-		const timeSinceConnection = Date.now() - (rd.connectionTime || 0);
-		
 		console.log('[Room] Duplicate username detected:', normalizedUser.userName, 
 			'myRole:', myRole, 'otherRole:', otherRole,
+			'myId:', rd.myId, 'otherId:', normalizedUser.clientId,
 			'isReconnecting:', rd.isReconnecting, 
-			'timeSinceConnection:', timeSinceConnection,
 			'duplicateHandled:', rd.duplicateHandled);
 		
 		// 决定谁应该被踢出：
-		// 1. 如果我是管理员，对方是普通用户 -> 不踢出自己（对方会被踢出）
+		// 1. 如果我是管理员，对方是普通用户 -> 不踢出自己
 		// 2. 如果我是普通用户，对方是管理员 -> 踢出自己
 		// 3. 如果角色相同：
 		//    - 如果我是重连的（isReconnecting=true）-> 踢出自己
-		//    - 如果我的连接时间在 30 秒内 -> 踢出自己（我是后来者）
-		//    - 否则 -> 对方是后来者，不踢出自己
+		//    - 否则比较 clientId，clientId 字典序较大的被踢出（确保两边判断一致）
 		// Decide who should be kicked:
-		// 1. If I'm admin and other is user -> don't kick self (other will be kicked)
+		// 1. If I'm admin and other is user -> don't kick self
 		// 2. If I'm user and other is admin -> kick self
 		// 3. If same role:
 		//    - If I'm reconnecting (isReconnecting=true) -> kick self
-		//    - If my connection time is within 30 seconds -> kick self (I'm later joiner)
-		//    - Otherwise -> other is later joiner, don't kick self
+		//    - Otherwise compare clientId, larger one gets kicked (ensures consistent decision)
 		
 		let shouldKickSelf = false;
 		
@@ -407,14 +402,20 @@ export function handleClientSecured(idx, user) {
 				// 我是重连的，对方已经在线，我应该退出
 				console.log('[Room] I am reconnecting, other already online, kicking self');
 				shouldKickSelf = true;
-			} else if (timeSinceConnection < 30000) {
-				// 我的连接时间在 30 秒内，说明我是后来者，应该退出
-				console.log('[Room] I connected recently (' + timeSinceConnection + 'ms ago), kicking self');
-				shouldKickSelf = true;
 			} else {
-				// 我已经在线超过 30 秒，对方是后来者，不踢出自己
-				console.log('[Room] I have been online for ' + timeSinceConnection + 'ms, other is later joiner');
-				shouldKickSelf = false;
+				// 比较 clientId，字典序较大的被踢出
+				// 这样两边的判断结果是一致的，只有一个会被踢出
+				// Compare clientId, larger one gets kicked
+				// This ensures both sides make the same decision, only one gets kicked
+				const myId = rd.myId || '';
+				const otherId = normalizedUser.clientId || '';
+				if (myId > otherId) {
+					console.log('[Room] My clientId is larger, kicking self');
+					shouldKickSelf = true;
+				} else {
+					console.log('[Room] My clientId is smaller, not kicking self');
+					shouldKickSelf = false;
+				}
 			}
 		}
 		
