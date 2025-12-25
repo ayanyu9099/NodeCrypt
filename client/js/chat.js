@@ -40,8 +40,9 @@ export function renderChatArea() {
 	
 	const rd = roomsData[activeRoomIndex];
 	
-	// 单聊模式：如果没有选择聊天对象，显示提示
-	if (!rd.privateChatTargetId) {
+	// 单聊模式：如果没有选择聊天对象（包括名字），显示提示
+	// 如果有 privateChatTargetName 但目标暂时不在线，仍然显示聊天界面
+	if (!rd.privateChatTargetId && !rd.privateChatTargetName) {
 		const tip = document.createElement('div');
 		tip.className = 'chat-empty-tip';
 		tip.innerHTML = `
@@ -53,7 +54,23 @@ export function renderChatArea() {
 	}
 	
 	// 渲染与当前选中用户的私聊记录
-	const privateChat = rd.privateChats[rd.privateChatTargetId];
+	// 优先使用 privateChatTargetId，如果不存在则尝试通过名字查找历史记录
+	let privateChat = rd.privateChats[rd.privateChatTargetId];
+	if (!privateChat && rd.privateChatTargetName) {
+		// 尝试查找之前的聊天记录（可能 clientId 已变化）
+		for (const [id, chat] of Object.entries(rd.privateChats)) {
+			if (chat.messages && chat.messages.length > 0) {
+				// 检查是否是与目标用户的聊天记录
+				const hasTargetMessages = chat.messages.some(m => 
+					m.userName === rd.privateChatTargetName || m.type === 'me'
+				);
+				if (hasTargetMessages) {
+					privateChat = chat;
+					break;
+				}
+			}
+		}
+	}
 	if (privateChat && privateChat.messages) {
 		privateChat.messages.forEach(m => {
 			if (m.type === 'me') addMsg(m.text, true, m.msgType || 'text', m.timestamp);
@@ -371,7 +388,9 @@ export function updateChatInputStyle() {
 	const chatInputArea = $('.chat-input-area');
 	const placeholder = $('.input-field-placeholder');
 	const inputMessageInput = $('.input-message-input');
-	if (!chatInputArea || !placeholder || !inputMessageInput) return;	if (rd && rd.privateChatTargetId) {
+	if (!chatInputArea || !placeholder || !inputMessageInput) return;
+	// 如果有私聊目标（通过 ID 或名字），显示私聊模式
+	if (rd && (rd.privateChatTargetId || rd.privateChatTargetName)) {
 		addClass(chatInputArea, 'private-mode');
 		addClass(inputMessageInput, 'private-mode');
 		placeholder.textContent = `${t('ui.private_message_to', 'Private Message to')} ${escapeHTML(rd.privateChatTargetName)}`

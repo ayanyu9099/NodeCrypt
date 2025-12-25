@@ -286,6 +286,10 @@ window.addEventListener('DOMContentLoaded', async () => {
 			// 单聊模式：必须先选择聊天对象
 			// Single chat mode: must select a chat target first
 			if (!rd.privateChatTargetId) {
+				// 如果有目标名字但没有 ID，说明目标用户暂时不在线
+				if (rd.privateChatTargetName) {
+					showToastMsg(`${rd.privateChatTargetName} ${t('system.user_offline', '暂时不在线，请稍后再试')}`, 'warning');
+				}
 				// 提示用户先选择聊天对象
 				return;
 			}

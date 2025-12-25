@@ -260,43 +260,53 @@ export function handleClientList(idx, list, selfId) {
 	}
 	
 	// 检查并修复 privateChatTargetId（重连后 clientId 可能变化）
+	// 只对管理员角色自动恢复，防止普通用户冒名顶替
 	// Check and fix privateChatTargetId (clientId may change after reconnect)
-	if (rd.privateChatTargetId && rd.privateChatTargetName) {
-		// 检查当前目标是否还在用户列表中
-		const targetExists = rd.userList.some(u => u.clientId === rd.privateChatTargetId);
-		console.log('[Room] Checking privateChatTargetId:', rd.privateChatTargetId, 
-			'targetName:', rd.privateChatTargetName, 'exists:', targetExists);
+	// Only auto-restore for admin role to prevent impersonation
+	if (rd.privateChatTargetName) {
+		// 尝试通过用户名找到目标用户
+		const targetByName = rd.userList.find(u => {
+			const uName = u.userName || u.username || '';
+			return uName === rd.privateChatTargetName;
+		});
 		
-		if (!targetExists) {
-			// 尝试通过用户名找到新的 clientId
-			const targetByName = rd.userList.find(u => {
-				const uName = u.userName || u.username || '';
-				return uName === rd.privateChatTargetName;
-			});
-			
-			if (targetByName) {
-				const oldId = rd.privateChatTargetId;
-				console.log('[Room] Fixing privateChatTargetId after reconnect:', 
-					oldId, '->', targetByName.clientId);
-				// 迁移聊天记录到新的 clientId
-				if (rd.privateChats[oldId]) {
-					rd.privateChats[targetByName.clientId] = rd.privateChats[oldId];
-					delete rd.privateChats[oldId];
+		if (targetByName) {
+			// 只有目标是管理员时才自动恢复
+			// Only auto-restore if target is admin
+			if (targetByName.role === 'admin') {
+				// 目标管理员在线，检查是否需要更新 clientId
+				if (rd.privateChatTargetId !== targetByName.clientId) {
+					const oldId = rd.privateChatTargetId;
+					console.log('[Room] Fixing privateChatTargetId for admin after reconnect:', 
+						oldId, '->', targetByName.clientId);
+					// 迁移聊天记录到新的 clientId
+					if (oldId && rd.privateChats[oldId]) {
+						rd.privateChats[targetByName.clientId] = rd.privateChats[oldId];
+						delete rd.privateChats[oldId];
+					}
+					rd.privateChatTargetId = targetByName.clientId;
+					
+					// 重新渲染聊天区域和输入框，恢复私聊状态
+					if (activeRoomIndex === idx) {
+						renderChatArea();
+						updateChatInputStyle();
+					}
 				}
-				rd.privateChatTargetId = targetByName.clientId;
-				
-				// 重新渲染聊天区域和输入框，恢复私聊状态
-				// Re-render chat area and input to restore private chat state
+			} else {
+				// 目标是普通用户，不自动恢复，清除状态
+				// Target is regular user, don't auto-restore, clear state
+				console.log('[Room] Target is regular user, not auto-restoring:', rd.privateChatTargetName);
+				rd.privateChatTargetId = null;
+				rd.privateChatTargetName = null;
 				if (activeRoomIndex === idx) {
 					renderChatArea();
 					updateChatInputStyle();
 				}
-			} else {
-				// 目标用户可能还没重连，暂时保留状态，不清除
-				// Target user may not have reconnected yet, keep state temporarily
-				console.log('[Room] Private chat target not found yet, keeping state:', rd.privateChatTargetName);
-				// 不清除，等待目标用户重连
 			}
+		} else {
+			// 目标用户不在线
+			// Target user offline
+			console.log('[Room] Private chat target not online yet:', rd.privateChatTargetName);
 		}
 	}
 	
@@ -308,14 +318,15 @@ export function handleClientList(idx, list, selfId) {
 	if (rd.initCount === 2) {
 		rd.isInitialized = true;
 		rd.knownUserIds = new Set(list.map(u => u.clientId));
-		
-		// 普通用户自动打开与管理员的聊天
-		// Auto open chat with admin for regular users
-		if (rd.myRole !== 'admin' && !rd.privateChatTargetId) {
-			const firstAdmin = rd.userList.find(u => u.role === 'admin');
-			if (firstAdmin) {
-				togglePrivateChat(firstAdmin.clientId, firstAdmin.userName || firstAdmin.username);
-			}
+	}
+	
+	// 普通用户自动打开与管理员的聊天（首次连接或重连后）
+	// Auto open chat with admin for regular users (first connect or after reconnect)
+	if (rd.isInitialized && rd.myRole !== 'admin' && !rd.privateChatTargetId) {
+		const firstAdmin = rd.userList.find(u => u.role === 'admin');
+		if (firstAdmin) {
+			console.log('[Room] Auto opening chat with admin:', firstAdmin.userName);
+			togglePrivateChat(firstAdmin.clientId, firstAdmin.userName || firstAdmin.username);
 		}
 	}
 }
@@ -454,11 +465,14 @@ export function handleClientSecured(idx, user) {
 	}
 	
 	// 检查是否需要恢复与该用户的私聊（重连后 clientId 变化的情况）
+	// 只对管理员角色自动恢复，防止普通用户冒名顶替
 	// Check if we need to restore private chat with this user (clientId changed after reconnect)
-	if (rd.privateChatTargetName && normalizedUser.userName === rd.privateChatTargetName) {
-		const currentTargetExists = rd.userList.some(u => u.clientId === rd.privateChatTargetId);
-		if (!currentTargetExists && normalizedUser.clientId !== rd.privateChatTargetId) {
-			console.log('[Room] Restoring private chat after reconnect:', 
+	// Only auto-restore for admin role to prevent impersonation by regular users
+	if (rd.privateChatTargetName && normalizedUser.userName === rd.privateChatTargetName && normalizedUser.role === 'admin') {
+		// 目标管理员重新上线，恢复私聊
+		// Target admin came back online, restore private chat
+		if (!rd.privateChatTargetId || rd.privateChatTargetId !== normalizedUser.clientId) {
+			console.log('[Room] Restoring private chat with admin after reconnect:', 
 				rd.privateChatTargetId, '->', normalizedUser.clientId);
 			const oldId = rd.privateChatTargetId;
 			// 迁移聊天记录到新的 clientId
@@ -482,11 +496,28 @@ export function handleClientSecured(idx, user) {
 export function handleClientLeft(idx, clientId) {
 	const rd = roomsData[idx];
 	if (!rd) return;
+	
+	const leavingUser = rd.userMap[clientId];
+	
 	if (rd.privateChatTargetId === clientId) {
-		rd.privateChatTargetId = null;
-		rd.privateChatTargetName = null;
+		// 只有当目标是管理员时才保留 privateChatTargetName 用于自动恢复
+		// 普通用户离开后清除私聊状态，防止冒名顶替
+		// Only keep privateChatTargetName for auto-restore if target is admin
+		// Clear private chat state for regular users to prevent impersonation
+		if (leavingUser && leavingUser.role === 'admin') {
+			// 管理员离开，保留名字以便重连恢复
+			rd.privateChatTargetId = null;
+			console.log('[Room] Admin left, keeping privateChatTargetName for reconnect:', rd.privateChatTargetName);
+		} else {
+			// 普通用户离开，清除所有私聊状态
+			rd.privateChatTargetId = null;
+			rd.privateChatTargetName = null;
+			console.log('[Room] Regular user left, clearing private chat state');
+		}
+		
 		if (activeRoomIndex === idx) {
-			updateChatInputStyle()
+			renderChatArea();
+			updateChatInputStyle();
 		}
 	}
 	const user = rd.userMap[clientId];
