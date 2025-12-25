@@ -217,6 +217,84 @@ export function handleClientList(idx, list, selfId) {
 	console.log('[Room] handleClientList called, list:', list.length, 'selfId:', selfId,
 		'raw list:', list.map(u => ({ id: u.clientId?.substring(0, 8), name: u.userName || u.username, role: u.role })));
 	
+	// 检查用户列表中是否有与自己同名的其他用户（用户名唯一性检查）
+	// Check if there's another user with the same username in the list (username uniqueness check)
+	if (selfId && rd.myUserName && !rd.duplicateHandled) {
+		const duplicateUser = list.find(u => {
+			const uName = u.userName || u.username || u.name || '';
+			return uName === rd.myUserName && u.clientId !== selfId;
+		});
+		
+		if (duplicateUser) {
+			const myRole = rd.myRole || 'user';
+			const otherRole = duplicateUser.role || 'user';
+			
+			console.log('[Room] Duplicate username found in list:', rd.myUserName,
+				'myRole:', myRole, 'otherRole:', otherRole,
+				'myId:', selfId, 'otherId:', duplicateUser.clientId);
+			
+			// 决定谁应该被踢出：
+			// 1. 管理员优先级高于普通用户
+			// 2. 角色相同时，后加入的用户（即当前用户，因为对方已经在列表中）应该被踢出
+			// Decide who should be kicked:
+			// 1. Admin has higher priority than regular user
+			// 2. When roles are same, the latecomer (current user, since the other is already in the list) should be kicked
+			
+			let shouldKickSelf = false;
+			
+			if (myRole === 'admin' && otherRole !== 'admin') {
+				// 我是管理员，对方是普通用户，不踢出自己
+				console.log('[Room] I am admin, other is user, not kicking self');
+				shouldKickSelf = false;
+			} else if (myRole !== 'admin' && otherRole === 'admin') {
+				// 我是普通用户，对方是管理员，踢出自己
+				console.log('[Room] I am user, other is admin, kicking self');
+				shouldKickSelf = true;
+			} else {
+				// 角色相同时，对方已经在房间里，我是后来的，我应该退出
+				// When roles are same, the other is already in the room, I'm the latecomer, I should exit
+				console.log('[Room] Same role, other already in room, kicking self');
+				shouldKickSelf = true;
+			}
+			
+			if (shouldKickSelf) {
+				// 标记已处理，避免重复处理
+				rd.duplicateHandled = true;
+				
+				console.log('[Room] Kicking duplicate user from handleClientList...');
+				
+				// 断开连接并提示
+				if (rd.chat) {
+					rd.chat.destruct();
+				}
+				// 从房间列表中移除
+				const roomIdx = roomsData.findIndex(r => r === rd);
+				if (roomIdx !== -1) {
+					roomsData.splice(roomIdx, 1);
+				}
+				// 显示登录界面
+				const loginContainer = $id('login-container');
+				if (loginContainer) loginContainer.style.display = '';
+				const chatContainer = $id('chat-container');
+				if (chatContainer) chatContainer.style.display = 'none';
+				
+				// 重置登录按钮状态
+				const loginBtn = document.querySelector('#login-form .login-btn');
+				if (loginBtn) {
+					loginBtn.disabled = false;
+					loginBtn.textContent = t('ui.enter', '加入房间');
+				}
+				
+				// 提示用户
+				const message = (myRole !== 'admin' && otherRole === 'admin')
+					? t('ui.username_taken_by_admin', '管理员使用了此用户名，您已被踢出房间')
+					: t('ui.username_taken', '此用户名已在房间中使用，请更换用户名');
+				alert(message);
+				return;
+			}
+		}
+	}
+	
 	const oldUserIds = new Set((rd.userList || []).map(u => u.clientId));
 	const newUserIds = new Set(list.map(u => u.clientId));
 	
