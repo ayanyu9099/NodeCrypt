@@ -154,10 +154,18 @@ export function joinRoom(userName, roomName, password, modal = null, onResult, u
 		onServerSecured: () => {
 			setConnectionStatus('connected');
 			
-			// 注意：不更新 joinTime，保持原来的加入时间
-			// 这样重连用户会被识别为先加入者
-			// Note: Don't update joinTime, keep original join time
-			// This way reconnecting user will be identified as earlier joiner
+			// 重连时更新 joinTime 为当前时间
+			// 这样重连用户会被视为"后来者"，如果房间里已有同名用户，重连者会被踢出
+			// Update joinTime on reconnect to current time
+			// This way reconnecting user is treated as "later joiner", 
+			// if same username already exists in room, reconnecting user gets kicked
+			if (roomsData[idx]) {
+				roomsData[idx].joinTime = Date.now();
+				// 同时更新 credentials 中的 joinTime
+				if (chatInst.credentials) {
+					chatInst.credentials.joinTime = roomsData[idx].joinTime;
+				}
+			}
 			
 			if (modal) modal.remove();
 			else {

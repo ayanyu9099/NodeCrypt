@@ -94,10 +94,8 @@ export function manualReconnect() {
 	
 	setConnectionStatus('reconnecting');
 	
-	// 注意：不更新 joinTime，保持原来的加入时间
-	// 这样重连用户会被识别为先加入者
-	// Note: Don't update joinTime, keep original join time
-	// This way reconnecting user will be identified as earlier joiner
+	// joinTime 会在 onServerSecured 回调中更新
+	// joinTime will be updated in onServerSecured callback
 	
 	// 尝试重连
 	if (rd.chat.isClosed()) {
@@ -145,8 +143,7 @@ function handleVisibilityChange() {
 			if (rd.chat.isClosed()) {
 				console.log('[Connection] Connection lost while in background, reconnecting...');
 				setConnectionStatus('reconnecting');
-				// 注意：不更新 joinTime，保持原来的加入时间
-				// Note: Don't update joinTime, keep original join time
+				// joinTime 会在 onServerSecured 回调中更新
 				rd.chat.connect();
 			} else if (rd.chat.isOpen()) {
 				// 发送一个 ping 确认连接还活着
@@ -166,8 +163,7 @@ function handleOnline() {
 	const rd = roomsData[activeRoomIndex];
 	if (rd && rd.chat && rd.chat.isClosed()) {
 		setConnectionStatus('reconnecting');
-		// 注意：不更新 joinTime，保持原来的加入时间
-		// Note: Don't update joinTime, keep original join time
+		// joinTime 会在 onServerSecured 回调中更新
 		setTimeout(() => rd.chat.connect(), 1000);
 	}
 }
