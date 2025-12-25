@@ -143,11 +143,6 @@ export function joinRoom(userName, roomName, password, modal = null, onResult, u
 		onServerClosed: () => {
 			console.log('Node connection closed');
 			setConnectionStatus('disconnected');
-			// 标记为重连状态
-			// Mark as reconnecting state
-			if (roomsData[idx]) {
-				roomsData[idx].isReconnecting = true;
-			}
 			// 不要在连接关闭时移除房间数据，保留以便重连
 			// Don't remove room data on connection close, keep it for reconnection
 			// 只有在首次连接失败时才通知失败
@@ -159,10 +154,10 @@ export function joinRoom(userName, roomName, password, modal = null, onResult, u
 		onServerSecured: () => {
 			setConnectionStatus('connected');
 			
-			// 记录本次连接时间，用于重复用户名检测
-			// Record connection time for duplicate username detection
+			// 更新 joinTime，用于重复用户名检测（重连时也会更新）
+			// Update joinTime for duplicate username detection (also updated on reconnect)
 			if (roomsData[idx]) {
-				roomsData[idx].connectionTime = Date.now();
+				roomsData[idx].joinTime = Date.now();
 			}
 			
 			if (modal) modal.remove();
@@ -216,84 +211,6 @@ export function handleClientList(idx, list, selfId) {
 	
 	console.log('[Room] handleClientList called, list:', list.length, 'selfId:', selfId,
 		'raw list:', list.map(u => ({ id: u.clientId?.substring(0, 8), name: u.userName || u.username, role: u.role })));
-	
-	// 检查用户列表中是否有与自己同名的其他用户（用户名唯一性检查）
-	// Check if there's another user with the same username in the list (username uniqueness check)
-	if (selfId && rd.myUserName && !rd.duplicateHandled) {
-		const duplicateUser = list.find(u => {
-			const uName = u.userName || u.username || u.name || '';
-			return uName === rd.myUserName && u.clientId !== selfId;
-		});
-		
-		if (duplicateUser) {
-			const myRole = rd.myRole || 'user';
-			const otherRole = duplicateUser.role || 'user';
-			
-			console.log('[Room] Duplicate username found in list:', rd.myUserName,
-				'myRole:', myRole, 'otherRole:', otherRole,
-				'myId:', selfId, 'otherId:', duplicateUser.clientId);
-			
-			// 决定谁应该被踢出：
-			// 1. 管理员优先级高于普通用户
-			// 2. 角色相同时，后加入的用户（即当前用户，因为对方已经在列表中）应该被踢出
-			// Decide who should be kicked:
-			// 1. Admin has higher priority than regular user
-			// 2. When roles are same, the latecomer (current user, since the other is already in the list) should be kicked
-			
-			let shouldKickSelf = false;
-			
-			if (myRole === 'admin' && otherRole !== 'admin') {
-				// 我是管理员，对方是普通用户，不踢出自己
-				console.log('[Room] I am admin, other is user, not kicking self');
-				shouldKickSelf = false;
-			} else if (myRole !== 'admin' && otherRole === 'admin') {
-				// 我是普通用户，对方是管理员，踢出自己
-				console.log('[Room] I am user, other is admin, kicking self');
-				shouldKickSelf = true;
-			} else {
-				// 角色相同时，对方已经在房间里，我是后来的，我应该退出
-				// When roles are same, the other is already in the room, I'm the latecomer, I should exit
-				console.log('[Room] Same role, other already in room, kicking self');
-				shouldKickSelf = true;
-			}
-			
-			if (shouldKickSelf) {
-				// 标记已处理，避免重复处理
-				rd.duplicateHandled = true;
-				
-				console.log('[Room] Kicking duplicate user from handleClientList...');
-				
-				// 断开连接并提示
-				if (rd.chat) {
-					rd.chat.destruct();
-				}
-				// 从房间列表中移除
-				const roomIdx = roomsData.findIndex(r => r === rd);
-				if (roomIdx !== -1) {
-					roomsData.splice(roomIdx, 1);
-				}
-				// 显示登录界面
-				const loginContainer = $id('login-container');
-				if (loginContainer) loginContainer.style.display = '';
-				const chatContainer = $id('chat-container');
-				if (chatContainer) chatContainer.style.display = 'none';
-				
-				// 重置登录按钮状态
-				const loginBtn = document.querySelector('#login-form .login-btn');
-				if (loginBtn) {
-					loginBtn.disabled = false;
-					loginBtn.textContent = t('ui.enter', '加入房间');
-				}
-				
-				// 提示用户
-				const message = (myRole !== 'admin' && otherRole === 'admin')
-					? t('ui.username_taken_by_admin', '管理员使用了此用户名，您已被踢出房间')
-					: t('ui.username_taken', '此用户名已在房间中使用，请更换用户名');
-				alert(message);
-				return;
-			}
-		}
-	}
 	
 	const oldUserIds = new Set((rd.userList || []).map(u => u.clientId));
 	const newUserIds = new Set(list.map(u => u.clientId));
@@ -446,22 +363,16 @@ export function handleClientSecured(idx, user) {
 		
 		console.log('[Room] Duplicate username detected:', normalizedUser.userName, 
 			'myRole:', myRole, 'otherRole:', otherRole,
-			'myId:', rd.myId, 'otherId:', normalizedUser.clientId,
-			'isReconnecting:', rd.isReconnecting, 
-			'duplicateHandled:', rd.duplicateHandled);
+			'myJoinTime:', rd.joinTime, 'duplicateHandled:', rd.duplicateHandled);
 		
 		// 决定谁应该被踢出：
-		// 1. 如果我是管理员，对方是普通用户 -> 不踢出自己
+		// 1. 如果我是管理员，对方是普通用户 -> 不踢出自己（对方会被踢出）
 		// 2. 如果我是普通用户，对方是管理员 -> 踢出自己
-		// 3. 如果角色相同：
-		//    - 如果我是重连的（isReconnecting=true）-> 踢出自己
-		//    - 否则比较 clientId，clientId 字典序较大的被踢出（确保两边判断一致）
+		// 3. 如果角色相同 -> 后加入者被踢出（比较 joinTime）
 		// Decide who should be kicked:
-		// 1. If I'm admin and other is user -> don't kick self
+		// 1. If I'm admin and other is user -> don't kick self (other will be kicked)
 		// 2. If I'm user and other is admin -> kick self
-		// 3. If same role:
-		//    - If I'm reconnecting (isReconnecting=true) -> kick self
-		//    - Otherwise compare clientId, larger one gets kicked (ensures consistent decision)
+		// 3. If same role -> later joiner gets kicked (compare joinTime)
 		
 		let shouldKickSelf = false;
 		
@@ -474,27 +385,25 @@ export function handleClientSecured(idx, user) {
 			console.log('[Room] I am user, other is admin, kicking self');
 			shouldKickSelf = true;
 		} else {
-			// 角色相同时：后加入的用户应该被踢出
-			// When roles are same: the user who joined later should be kicked
-			// 
-			// 这里的逻辑是：当收到 handleClientSecured 事件时，说明有新用户加入
-			// 如果新用户的用户名和我相同，那么：
-			// - 如果我是重连的（isReconnecting=true），说明我是后来的，我应该退出
-			// - 否则，对方是后来的，对方应该退出（我不需要做任何事，对方会自己退出）
-			// 
-			// The logic here: when handleClientSecured event is received, a new user joined
-			// If the new user has the same username as me:
-			// - If I'm reconnecting (isReconnecting=true), I'm the latecomer, I should exit
-			// - Otherwise, the other is the latecomer, they should exit (I don't need to do anything)
+			// 角色相同时，需要确定谁是后来者
+			// 由于无法获取对方的 joinTime，使用以下策略：
+			// - 如果我的 joinTime 在最近 10 秒内，说明我可能是重连的，应该踢出自己
+			// - 否则，假设对方是后来者，不踢出自己
+			// When roles are same, need to determine who joined later
+			// Since we can't get other's joinTime, use this strategy:
+			// - If my joinTime is within last 10 seconds, I might be reconnecting, kick self
+			// - Otherwise, assume other is later joiner, don't kick self
+			const timeSinceJoin = Date.now() - (rd.joinTime || 0);
+			const isRecentJoin = timeSinceJoin < 10000; // 10 秒内
 			
-			if (rd.isReconnecting) {
-				// 我是重连的，对方已经在线，我应该退出
-				console.log('[Room] I am reconnecting, other already online, kicking self');
+			// 如果我是最近加入的（可能是重连），而对方已经在线，我应该退出
+			// If I joined recently (might be reconnecting) and other is already online, I should exit
+			if (isRecentJoin) {
+				console.log('[Room] I joined recently, might be duplicate, kicking self');
 				shouldKickSelf = true;
 			} else {
-				// 我先在线，对方是后来的，我不需要退出
-				// 对方会在他们那边收到我的 clientSecured 事件，然后他们会退出
-				console.log('[Room] I was here first, other is the latecomer, not kicking self');
+				// 我已经在线很久了，对方是后来者，不踢出自己
+				console.log('[Room] I have been online for a while, other is later joiner');
 				shouldKickSelf = false;
 			}
 		}

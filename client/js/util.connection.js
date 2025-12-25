@@ -94,6 +94,10 @@ export function manualReconnect() {
 	
 	setConnectionStatus('reconnecting');
 	
+	// 更新 joinTime，用于重复用户名检测
+	// Update joinTime for duplicate username detection
+	rd.joinTime = Date.now();
+	
 	// 尝试重连
 	if (rd.chat.isClosed()) {
 		rd.chat.connect();
@@ -140,6 +144,8 @@ function handleVisibilityChange() {
 			if (rd.chat.isClosed()) {
 				console.log('[Connection] Connection lost while in background, reconnecting...');
 				setConnectionStatus('reconnecting');
+				// 更新 joinTime，用于重复用户名检测
+				rd.joinTime = Date.now();
 				rd.chat.connect();
 			} else if (rd.chat.isOpen()) {
 				// 发送一个 ping 确认连接还活着
@@ -159,6 +165,8 @@ function handleOnline() {
 	const rd = roomsData[activeRoomIndex];
 	if (rd && rd.chat && rd.chat.isClosed()) {
 		setConnectionStatus('reconnecting');
+		// 更新 joinTime，用于重复用户名检测
+		rd.joinTime = Date.now();
 		setTimeout(() => rd.chat.connect(), 1000);
 	}
 }
