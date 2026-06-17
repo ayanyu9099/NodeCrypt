@@ -460,19 +460,42 @@ class NodeCrypt {
 		}
 	}
 
-	// Start ping timer
-	// 启动心跳定时器
+	// Start ping timer using Web Worker (not affected by page visibility/file picker)
+	// 启动心跳定时器（使用 Web Worker，不受页面可见性/文件选择器影响）
 	startPing() {
 		this.stopPing();
 		this.logEvent('startPing');
-		this.ping = setInterval(() => {
-			this.sendMessage('ping')
-		}, this.config.pingInterval)
+		try {
+			const workerBlob = new Blob(
+				[`let pi=null;self.onmessage=function(e){const{type:t,interval:i}=e.data;if(t==='start'){if(pi)clearInterval(pi);pi=setInterval(()=>{self.postMessage('ping')},i||15000)}else if(t==='stop'){if(pi){clearInterval(pi);pi=null}}}`],
+				{ type: 'application/javascript' }
+			);
+			const workerUrl = URL.createObjectURL(workerBlob);
+			this.pingWorker = new Worker(workerUrl);
+			this.pingWorker.onmessage = () => {
+				if (this.isOpen()) {
+					this.sendMessage('ping');
+				}
+			};
+			this.pingWorker.postMessage({ type: 'start', interval: this.config.pingInterval });
+			URL.revokeObjectURL(workerUrl);
+		} catch (e) {
+			this.logEvent('startPing-fallback', e, 'warn');
+			this.ping = setInterval(() => {
+				this.sendMessage('ping')
+			}, this.config.pingInterval)
+		}
 	}
 
 	// Stop ping timer
 	// 停止心跳定时器
 	stopPing() {
+		if (this.pingWorker) {
+			this.logEvent('stopPing-worker');
+			this.pingWorker.postMessage({ type: 'stop' });
+			this.pingWorker.terminate();
+			this.pingWorker = null;
+		}
 		if (this.ping) {
 			this.logEvent('stopPing');
 			clearInterval(this.ping);

@@ -662,8 +662,8 @@ flex-direction: column;
 
 .bubble {
 	max-width: 80%;
-	padding: 12px 18px;
-	border-radius: 13px;
+	padding: 10px 14px;
+	border-radius: 8px;
 	margin-bottom: .375rem;
 	font-size: 15px;
 	line-height: 1.6;
@@ -695,7 +695,8 @@ flex-direction: column;
 	background: #95ec69;
 	color: #000;
 	margin-left: auto;
-	border-bottom-right-radius: 0px;
+	border-bottom-right-radius: 2px;
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 	padding: 10px 39px 7px 10px;
 }
 
@@ -704,7 +705,8 @@ flex-direction: column;
 	color: #000;
 	max-width: 100%;
 	color: #222;
-	border-bottom-left-radius: 0px;
+	border-bottom-left-radius: 2px;
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 	margin-left: 0px;
 	padding: 1px 40px 5px 10px;
 }
