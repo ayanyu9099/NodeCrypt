@@ -543,11 +543,13 @@ const broadcastMemberList = (channel) => {
 			const client = clients[member];
 
 			if (isClientInChannel(client, channel)) {
-				const filteredMembers = members.filter(value => value !== member);
+				const memberList = members.filter(value => value !== member).map((id) => {
+					return { id: id, ip: clients[id] ? clients[id].ip : '' };
+				});
 
 				const listObj = {
 					a: 'l',
-					p: filteredMembers
+					p: memberList
 				};
 
 				const encrypted = encryptMessage(listObj, client.shared);
